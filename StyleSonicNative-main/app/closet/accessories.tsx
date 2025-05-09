@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react"; // Importing React and hooks
 import {
   View,
   Text,
@@ -8,10 +8,10 @@ import {
   ScrollView,
   Alert,
   TextInput,
-} from "react-native";
-import { FontAwesome5, Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { auth } from "../../services/firebaseConfig";
+} from "react-native"; // Importing necessary React Native components
+import { FontAwesome5, Ionicons } from "@expo/vector-icons"; // Importing icons
+import { useRouter } from "expo-router"; // Importing useRouter for navigation
+import { auth } from "../../services/firebaseConfig"; // Firebase authentication service
 import {
   doc,
   getFirestore,
@@ -20,122 +20,126 @@ import {
   arrayRemove,
   addDoc,
   collection,
-} from "firebase/firestore";
+} from "firebase/firestore"; // Firebase Firestore functions
 
 const AccessoriesScreen = () => {
   const [accessories, setAccessories] = useState<
     { imageId: string; name: string; imageUrl: string }[]
-  >([]);
-  const router = useRouter();
-  const [showShareModal, setShowShareModal] = useState(false);
+  >([]); // State for storing accessories data
+  const router = useRouter(); // Router for navigation
+  const [showShareModal, setShowShareModal] = useState(false); // State to show or hide share modal
   const [selectedAccessory, setSelectedAccessory] = useState<{
     imageId: string;
     name: string;
     imageUrl: string;
-  } | null>(null);
-  const [caption, setCaption] = useState("");
+  } | null>(null); // State for selected accessory
+  const [caption, setCaption] = useState(""); // State for storing caption for shared accessory
 
+  // Fetch user accessories data from Firestore
   useEffect(() => {
     const fetchAccessories = async () => {
       try {
-        const userId = auth.currentUser?.uid;
+        const userId = auth.currentUser?.uid; // Get current user's ID
         if (userId) {
           const db = getFirestore();
-          const userRef = doc(db, "users", userId);
-          const userDoc = await getDoc(userRef);
+          const userRef = doc(db, "users", userId); // Get user document reference
+          const userDoc = await getDoc(userRef); // Fetch user document
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            const accessoriesList = userData.accessories || [];
+            const accessoriesList = userData.accessories || []; // Get user's accessories list
             // Ensure each accessory item has an imageUrl
             const accessoriesWithUrls = accessoriesList.map(
               (accessory: any) => ({
                 ...accessory,
                 imageUrl:
                   accessory.imageUrl ||
-                  `http://192.168.0.16:5000/uploads/${accessory.imageId}`,
+                  `http://192.168.0.16:5000/uploads/${accessory.imageId}`, // Default URL if not provided
               })
             );
-            setAccessories(accessoriesWithUrls);
+            setAccessories(accessoriesWithUrls); // Set the accessories state
           }
         }
       } catch (error) {
         console.error("Error fetching accessories:", error);
-        Alert.alert("Error", "Failed to fetch accessories");
+        Alert.alert("Error", "Failed to fetch accessories"); // Show alert if there's an error
       }
     };
 
-    fetchAccessories();
+    fetchAccessories(); // Call fetchAccessories function
   }, []);
 
+  // Function to handle sharing the accessory
   const handleShare = async (accessory: {
     imageId: string;
     name: string;
     imageUrl: string;
   }) => {
     if (!accessory.imageUrl) {
-      Alert.alert("Error", "Cannot share outfit: Image URL is missing");
+      Alert.alert("Error", "Cannot share accessory: Image URL is missing");
       return;
     }
-    setSelectedAccessory(accessory);
-    setShowShareModal(true);
+    setSelectedAccessory(accessory); // Set the selected accessory for sharing
+    setShowShareModal(true); // Show the share modal
   };
 
+  // Function to handle posting the accessory with a caption
   const handlePost = async () => {
     if (!selectedAccessory || !caption.trim()) {
-      Alert.alert("Error", "Please enter a caption");
+      Alert.alert("Error", "Please enter a caption"); // Show alert if caption is missing
       return;
     }
 
     if (!selectedAccessory.imageUrl) {
-      Alert.alert("Error", "Cannot share outfit: Image URL is missing");
+      Alert.alert("Error", "Cannot share accessory: Image URL is missing");
       return;
     }
 
     try {
-      const user = auth.currentUser;
+      const user = auth.currentUser; // Get current user
       if (user) {
         const db = getFirestore();
         await addDoc(collection(db, "posts"), {
-          userId: user.uid,
-          userName: user.displayName || "Anonymous",
-          imageUrl: selectedAccessory.imageUrl,
-          caption: caption.trim(),
-          timestamp: new Date(),
-          likes: 0,
+          userId: user.uid, // Store user ID
+          userName: user.displayName || "Anonymous", // Use display name or fallback to "Anonymous"
+          imageUrl: selectedAccessory.imageUrl, // Store accessory image URL
+          caption: caption.trim(), // Store the caption
+          timestamp: new Date(), // Store the current timestamp
+          likes: 0, // Initialize likes to 0
         });
 
-        setShowShareModal(false);
-        setCaption("");
-        Alert.alert("Success", "Outfit shared successfully!");
+        setShowShareModal(false); // Close share modal after posting
+        setCaption(""); // Clear caption input field
+        Alert.alert("Success", "Accessory shared successfully!"); // Show success message
       }
     } catch (error) {
-      console.error("Error sharing outfit:", error);
-      Alert.alert("Error", "Failed to share outfit");
+      console.error("Error sharing accessory:", error);
+      Alert.alert("Error", "Failed to share accessory"); // Show error message if posting fails
     }
   };
 
+  // Function to handle deleting an accessory from the list
   const handleDelete = async (accessory: { imageId: string; name: string }) => {
     try {
-      // Delete the image from the backend
+      // Delete the image from the backend server
       const response = await fetch(
         `http://192.168.0.16:5000/delete/${accessory.imageId}`,
         {
-          method: "DELETE",
+          method: "DELETE", // HTTP method for deletion
         }
       );
 
       const result = await response.json();
       if (result.success) {
-        const userId = auth.currentUser?.uid;
+        const userId = auth.currentUser?.uid; // Get current user ID
         if (userId) {
           const db = getFirestore();
-          const userRef = doc(db, "users", userId);
+          const userRef = doc(db, "users", userId); // Get user document reference
           await updateDoc(userRef, {
-            accessories: arrayRemove(accessory),
+            accessories: arrayRemove(accessory), // Remove accessory from Firestore
           });
           setAccessories((prevAccessories) =>
             prevAccessories.filter((a) => a.imageId !== accessory.imageId)
-          );
+          ); // Remove accessory from the state
           Alert.alert("Success", "Image deleted successfully");
         }
       } else {
@@ -144,18 +148,21 @@ const AccessoriesScreen = () => {
       }
     } catch (error) {
       console.error("Error deleting image:", error);
-      Alert.alert("Error", "Failed to delete image");
+      Alert.alert("Error", "Failed to delete image"); // Show error message if deletion fails
     }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      {/* Back button to navigate to the previous screen */}
       <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
         <FontAwesome5 name="arrow-left" size={24} color="#A0A897" />
       </TouchableOpacity>
 
+      {/* Title */}
       <Text style={styles.title}>My Accessories</Text>
 
+      {/* Display Accessories */}
       <View style={styles.imageGrid}>
         {accessories.map((accessory) => (
           <View key={accessory.imageId} style={styles.imageContainer}>
@@ -163,12 +170,14 @@ const AccessoriesScreen = () => {
             <View style={styles.imageOverlay}>
               <Text style={styles.imageName}>{accessory.name}</Text>
               <View style={styles.buttonContainer}>
+                {/* Share button */}
                 <TouchableOpacity
                   style={styles.shareButton}
                   onPress={() => handleShare(accessory)}
                 >
                   <Ionicons name="share-social" size={24} color="#FFC1A1" />
                 </TouchableOpacity>
+                {/* Delete button */}
                 <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => handleDelete(accessory)}
@@ -181,6 +190,7 @@ const AccessoriesScreen = () => {
         ))}
       </View>
 
+      {/* Add New Accessory Button */}
       <TouchableOpacity
         style={styles.addButton}
         onPress={() => router.push("/closet/upload?category=accessories")}
@@ -188,6 +198,7 @@ const AccessoriesScreen = () => {
         <Text style={styles.addButtonText}>Add New Accessories</Text>
       </TouchableOpacity>
 
+      {/* Share Modal */}
       {showShareModal && (
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
@@ -196,22 +207,24 @@ const AccessoriesScreen = () => {
               style={styles.captionInput}
               placeholder="Write a caption..."
               value={caption}
-              onChangeText={setCaption}
-              multiline
+              onChangeText={setCaption} // Update caption state when text changes
+              multiline // Allow multi-line text input
             />
             <View style={styles.modalButtons}>
+              {/* Cancel Button */}
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => {
-                  setShowShareModal(false);
-                  setCaption("");
+                  setShowShareModal(false); // Close modal on cancel
+                  setCaption(""); // Clear caption input field
                 }}
               >
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
+              {/* Share Button */}
               <TouchableOpacity
                 style={[styles.modalButton, styles.shareButtonStyle]}
-                onPress={handlePost}
+                onPress={handlePost} // Call handlePost function to share the accessory
               >
                 <Text style={styles.modalButtonText}>Share</Text>
               </TouchableOpacity>
@@ -223,6 +236,7 @@ const AccessoriesScreen = () => {
   );
 };
 
+// Styles for the AccessoriesScreen
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
@@ -356,3 +370,4 @@ const styles = StyleSheet.create({
 });
 
 export default AccessoriesScreen;
+
