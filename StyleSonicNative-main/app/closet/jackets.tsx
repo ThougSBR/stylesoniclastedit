@@ -23,29 +23,43 @@ import {
 } from "firebase/firestore";
 
 const JacketsScreen = () => {
+  // State for storing jacket data
   const [jackets, setJackets] = useState<
     { imageId: string; name: string; imageUrl: string }[]
   >([]);
+
+  // Router hook for navigation
   const router = useRouter();
+
+  // State for controlling the visibility of the share modal
   const [showShareModal, setShowShareModal] = useState(false);
+
+  // State for the selected jacket to be shared
   const [selectedJacket, setSelectedJacket] = useState<{
     imageId: string;
     name: string;
     imageUrl: string;
   } | null>(null);
+
+  // State for the caption input while sharing an outfit
   const [caption, setCaption] = useState("");
 
+  // useEffect hook to fetch jackets data from Firestore
   useEffect(() => {
     const fetchJackets = async () => {
       try {
+        // Get the current user's UID
         const userId = auth.currentUser?.uid;
         if (userId) {
           const db = getFirestore();
           const userRef = doc(db, "users", userId);
           const userDoc = await getDoc(userRef);
+
+          // Check if user data exists
           if (userDoc.exists()) {
             const userData = userDoc.data();
             const jacketsList = userData.jackets || [];
+
             // Ensure each jacket item has an imageUrl
             const jacketsWithUrls = jacketsList.map((jacket: any) => ({
               ...jacket,
@@ -53,6 +67,8 @@ const JacketsScreen = () => {
                 jacket.imageUrl ||
                 `http://192.168.0.16:5000/uploads/${jacket.imageId}`,
             }));
+
+            // Set the fetched jackets data to the state
             setJackets(jacketsWithUrls);
           }
         }
@@ -65,20 +81,25 @@ const JacketsScreen = () => {
     fetchJackets();
   }, []);
 
+  // Function to handle share button click
   const handleShare = async (jacket: {
     imageId: string;
     name: string;
     imageUrl: string;
   }) => {
+    // Check if imageUrl exists
     if (!jacket.imageUrl) {
       Alert.alert("Error", "Cannot share outfit: Image URL is missing");
       return;
     }
+    // Set the selected jacket for sharing and show the share modal
     setSelectedJacket(jacket);
     setShowShareModal(true);
   };
 
+  // Function to handle post sharing after adding caption
   const handlePost = async () => {
+    // Check if selected jacket and caption are valid
     if (!selectedJacket || !caption.trim()) {
       Alert.alert("Error", "Please enter a caption");
       return;
@@ -93,6 +114,7 @@ const JacketsScreen = () => {
       const user = auth.currentUser;
       if (user) {
         const db = getFirestore();
+        // Add the post to Firestore
         await addDoc(collection(db, "posts"), {
           userId: user.uid,
           userName: "Anonymous",
@@ -102,6 +124,7 @@ const JacketsScreen = () => {
           likes: 0,
         });
 
+        // Close the share modal and reset caption
         setShowShareModal(false);
         setCaption("");
         Alert.alert("Success", "Outfit shared successfully!");
@@ -112,9 +135,10 @@ const JacketsScreen = () => {
     }
   };
 
+  // Function to handle delete button click
   const handleDelete = async (jacket: { imageId: string; name: string }) => {
     try {
-      // Delete the image from the backend
+      // Delete the jacket image from the backend server
       const response = await fetch(
         `http://192.168.0.16:5000/delete/${jacket.imageId}`,
         {
@@ -124,6 +148,7 @@ const JacketsScreen = () => {
 
       const result = await response.json();
       if (result.success) {
+        // Remove jacket from Firestore if deletion is successful
         const userId = auth.currentUser?.uid;
         if (userId) {
           const db = getFirestore();
@@ -131,6 +156,8 @@ const JacketsScreen = () => {
           await updateDoc(userRef, {
             jackets: arrayRemove(jacket),
           });
+
+          // Update the local state to reflect the removal
           setJackets((prevJackets) =>
             prevJackets.filter((j) => j.imageId !== jacket.imageId)
           );
@@ -155,18 +182,21 @@ const JacketsScreen = () => {
       <Text style={styles.title}>My Jackets</Text>
 
       <View style={styles.imageGrid}>
+        {/* Loop through each jacket and display */}
         {jackets.map((jacket) => (
           <View key={jacket.imageId} style={styles.imageContainer}>
             <Image source={{ uri: jacket.imageUrl }} style={styles.image} />
             <View style={styles.imageOverlay}>
               <Text style={styles.imageName}>{jacket.name}</Text>
               <View style={styles.buttonContainer}>
+                {/* Share button */}
                 <TouchableOpacity
                   style={styles.shareButton}
                   onPress={() => handleShare(jacket)}
                 >
                   <Ionicons name="share-social" size={24} color="#FFC1A1" />
                 </TouchableOpacity>
+                {/* Delete button */}
                 <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => handleDelete(jacket)}
@@ -179,6 +209,7 @@ const JacketsScreen = () => {
         ))}
       </View>
 
+      {/* Button to add new jacket */}
       <TouchableOpacity
         style={styles.addButton}
         onPress={() => router.push("/closet/upload?category=jackets")}
@@ -186,6 +217,7 @@ const JacketsScreen = () => {
         <Text style={styles.addButtonText}>Add New Jacket</Text>
       </TouchableOpacity>
 
+      {/* Modal for sharing the selected outfit */}
       {showShareModal && (
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
@@ -198,6 +230,7 @@ const JacketsScreen = () => {
               multiline
             />
             <View style={styles.modalButtons}>
+              {/* Cancel button */}
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => {
@@ -207,6 +240,7 @@ const JacketsScreen = () => {
               >
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
+              {/* Share button */}
               <TouchableOpacity
                 style={[styles.modalButton, styles.shareButtonStyle]}
                 onPress={handlePost}
@@ -354,3 +388,4 @@ const styles = StyleSheet.create({
 });
 
 export default JacketsScreen;
+
