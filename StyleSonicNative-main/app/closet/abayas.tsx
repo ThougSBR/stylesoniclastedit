@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react"; // Importing React and hooks
 import {
   View,
   Text,
@@ -8,10 +8,10 @@ import {
   ScrollView,
   Alert,
   TextInput,
-} from "react-native";
-import { FontAwesome5, Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { auth } from "../../services/firebaseConfig";
+} from "react-native"; // Importing necessary React Native components
+import { FontAwesome5, Ionicons } from "@expo/vector-icons"; // Importing icons
+import { useRouter } from "expo-router"; // Importing useRouter for navigation
+import { auth } from "../../services/firebaseConfig"; // Firebase authentication service
 import {
   doc,
   getFirestore,
@@ -20,51 +20,53 @@ import {
   arrayRemove,
   addDoc,
   collection,
-} from "firebase/firestore";
+} from "firebase/firestore"; // Firebase Firestore functions
 
 const AbayasScreen = () => {
   const [abayas, setAbayas] = useState<
     { imageId: string; name: string; imageUrl: string }[]
-  >([]);
-  const router = useRouter();
-  const [showShareModal, setShowShareModal] = useState(false);
+  >([]); // State for storing abayas data
+  const router = useRouter(); // Router for navigation
+  const [showShareModal, setShowShareModal] = useState(false); // State to show or hide share modal
   const [selectedAbaya, setSelectedAbaya] = useState<{
     imageId: string;
     name: string;
     imageUrl: string;
-  } | null>(null);
-  const [caption, setCaption] = useState("");
+  } | null>(null); // State for selected abaya
+  const [caption, setCaption] = useState(""); // State for storing caption for shared outfit
 
+  // Fetch user abayas data from Firestore
   useEffect(() => {
     const fetchAbayas = async () => {
       try {
-        const userId = auth.currentUser?.uid;
+        const userId = auth.currentUser?.uid; // Get current user's ID
         if (userId) {
           const db = getFirestore();
-          const userRef = doc(db, "users", userId);
-          const userDoc = await getDoc(userRef);
+          const userRef = doc(db, "users", userId); // Get user document reference
+          const userDoc = await getDoc(userRef); // Fetch user document
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            const abayasList = userData.abayas || [];
+            const abayasList = userData.abayas || []; // Get user's abayas list
             // Ensure each abaya item has an imageUrl
             const abayasWithUrls = abayasList.map((abaya: any) => ({
               ...abaya,
               imageUrl:
                 abaya.imageUrl ||
-                `http://192.168.0.16:5000/uploads/${abaya.imageId}`,
+                `http://192.168.0.16:5000/uploads/${abaya.imageId}`, // Default URL if not provided
             }));
-            setAbayas(abayasWithUrls);
+            setAbayas(abayasWithUrls); // Set the abayas state
           }
         }
       } catch (error) {
         console.error("Error fetching abayas:", error);
-        Alert.alert("Error", "Failed to fetch abayas");
+        Alert.alert("Error", "Failed to fetch abayas"); // Show alert if there's an error
       }
     };
 
-    fetchAbayas();
+    fetchAbayas(); // Call fetchAbayas function
   }, []);
 
+  // Function to handle sharing the abaya
   const handleShare = async (abaya: {
     imageId: string;
     name: string;
@@ -74,13 +76,14 @@ const AbayasScreen = () => {
       Alert.alert("Error", "Cannot share outfit: Image URL is missing");
       return;
     }
-    setSelectedAbaya(abaya);
-    setShowShareModal(true);
+    setSelectedAbaya(abaya); // Set the selected abaya for sharing
+    setShowShareModal(true); // Show the share modal
   };
 
+  // Function to handle posting the outfit with a caption
   const handlePost = async () => {
     if (!selectedAbaya || !caption.trim()) {
-      Alert.alert("Error", "Please enter a caption");
+      Alert.alert("Error", "Please enter a caption"); // Show alert if caption is missing
       return;
     }
 
@@ -90,50 +93,51 @@ const AbayasScreen = () => {
     }
 
     try {
-      const user = auth.currentUser;
+      const user = auth.currentUser; // Get current user
       if (user) {
         const db = getFirestore();
         await addDoc(collection(db, "posts"), {
-          userId: user.uid,
-          userName: user.displayName || "Anonymous",
-          imageUrl: selectedAbaya.imageUrl,
-          caption: caption.trim(),
-          timestamp: new Date(),
-          likes: 0,
+          userId: user.uid, // Store user ID
+          userName: user.displayName || "Anonymous", // Use display name or fallback to "Anonymous"
+          imageUrl: selectedAbaya.imageUrl, // Store abaya image URL
+          caption: caption.trim(), // Store the caption
+          timestamp: new Date(), // Store the current timestamp
+          likes: 0, // Initialize likes to 0
         });
 
-        setShowShareModal(false);
-        setCaption("");
-        Alert.alert("Success", "Outfit shared successfully!");
+        setShowShareModal(false); // Close share modal after posting
+        setCaption(""); // Clear caption input field
+        Alert.alert("Success", "Outfit shared successfully!"); // Show success message
       }
     } catch (error) {
       console.error("Error sharing outfit:", error);
-      Alert.alert("Error", "Failed to share outfit");
+      Alert.alert("Error", "Failed to share outfit"); // Show error message if posting fails
     }
   };
 
+  // Function to handle deleting an abaya from the list
   const handleDelete = async (abaya: { imageId: string; name: string }) => {
     try {
-      // Delete the image from the backend
+      // Delete the image from the backend server
       const response = await fetch(
         `http://192.168.0.16:5000/delete/${abaya.imageId}`,
         {
-          method: "DELETE",
+          method: "DELETE", // HTTP method for deletion
         }
       );
 
       const result = await response.json();
       if (result.success) {
-        const userId = auth.currentUser?.uid;
+        const userId = auth.currentUser?.uid; // Get current user ID
         if (userId) {
           const db = getFirestore();
-          const userRef = doc(db, "users", userId);
+          const userRef = doc(db, "users", userId); // Get user document reference
           await updateDoc(userRef, {
-            abayas: arrayRemove(abaya),
+            abayas: arrayRemove(abaya), // Remove abaya from Firestore
           });
           setAbayas((prevAbayas) =>
             prevAbayas.filter((a) => a.imageId !== abaya.imageId)
-          );
+          ); // Remove abaya from the state
           Alert.alert("Success", "Image deleted successfully");
         }
       } else {
@@ -142,18 +146,21 @@ const AbayasScreen = () => {
       }
     } catch (error) {
       console.error("Error deleting image:", error);
-      Alert.alert("Error", "Failed to delete image");
+      Alert.alert("Error", "Failed to delete image"); // Show error message if deletion fails
     }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      {/* Back button to navigate to the previous screen */}
       <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
         <FontAwesome5 name="arrow-left" size={24} color="#A0A897" />
       </TouchableOpacity>
 
+      {/* Title */}
       <Text style={styles.title}>My Abayas</Text>
 
+      {/* Display Abayas */}
       <View style={styles.imageGrid}>
         {abayas.map((abaya) => (
           <View key={abaya.imageId} style={styles.imageContainer}>
@@ -161,12 +168,14 @@ const AbayasScreen = () => {
             <View style={styles.imageOverlay}>
               <Text style={styles.imageName}>{abaya.name}</Text>
               <View style={styles.buttonContainer}>
+                {/* Share button */}
                 <TouchableOpacity
                   style={styles.shareButton}
                   onPress={() => handleShare(abaya)}
                 >
                   <Ionicons name="share-social" size={24} color="#FFC1A1" />
                 </TouchableOpacity>
+                {/* Delete button */}
                 <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => handleDelete(abaya)}
@@ -179,6 +188,7 @@ const AbayasScreen = () => {
         ))}
       </View>
 
+      {/* Add New Abaya Button */}
       <TouchableOpacity
         style={styles.addButton}
         onPress={() => router.push("/closet/upload?category=abayas")}
@@ -186,6 +196,7 @@ const AbayasScreen = () => {
         <Text style={styles.addButtonText}>Add New Abaya</Text>
       </TouchableOpacity>
 
+      {/* Share Modal */}
       {showShareModal && (
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
@@ -194,22 +205,24 @@ const AbayasScreen = () => {
               style={styles.captionInput}
               placeholder="Write a caption..."
               value={caption}
-              onChangeText={setCaption}
-              multiline
+              onChangeText={setCaption} // Update caption state when text changes
+              multiline // Allow multi-line text input
             />
             <View style={styles.modalButtons}>
+              {/* Cancel Button */}
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => {
-                  setShowShareModal(false);
-                  setCaption("");
+                  setShowShareModal(false); // Close modal on cancel
+                  setCaption(""); // Clear caption input field
                 }}
               >
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
+              {/* Share Button */}
               <TouchableOpacity
                 style={[styles.modalButton, styles.shareButtonStyle]}
-                onPress={handlePost}
+                onPress={handlePost} // Call handlePost function to share the outfit
               >
                 <Text style={styles.modalButtonText}>Share</Text>
               </TouchableOpacity>
@@ -221,6 +234,7 @@ const AbayasScreen = () => {
   );
 };
 
+// Styles for the AbayasScreen
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
@@ -354,3 +368,4 @@ const styles = StyleSheet.create({
 });
 
 export default AbayasScreen;
+
