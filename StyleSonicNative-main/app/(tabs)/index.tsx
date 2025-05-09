@@ -1,5 +1,5 @@
-import { useRouter } from "expo-router";
-import { useState, useEffect } from "react";
+import { useRouter } from "expo-router"; // Importing useRouter hook for navigation
+import { useState, useEffect } from "react"; // Importing hooks
 import {
   Image,
   StyleSheet,
@@ -8,17 +8,18 @@ import {
   Text,
   ScrollView,
   TouchableOpacity, // Import TouchableOpacity for handling clicks
-} from "react-native";
-import { Calendar } from "react-native-calendars";
-import chatmock from "../../assets/images/chatmock.png";
+} from "react-native"; // Importing core React Native components
+import { Calendar } from "react-native-calendars"; // Importing calendar component
+import chatmock from "../../assets/images/chatmock.png"; // Importing chat mock image
 import axios from "axios"; // Import axios for API requests
 import { Ionicons } from "@expo/vector-icons"; // Import Ionicons for the profile icon
-import { auth } from "../../services/firebaseConfig";
-import { getUserProfile } from "../../services/authService";
+import { auth } from "../../services/firebaseConfig"; // Importing Firebase authentication
+import { getUserProfile } from "../../services/authService"; // Importing user profile fetching service
 import { getFirestore, doc, getDoc, updateDoc } from "firebase/firestore"; // Import Firebase functions
 
-const ARLIAI_API_KEY = "be3a5908-5798-481b-a952-c0c6466a36dd"; // Use ARLIAI API key
+const ARLIAI_API_KEY = "be3a5908-5798-481b-a952-c0c6466a36dd"; // Define ARLIAI API key
 
+// Defining the Suggestion interface to type suggestion data
 interface Suggestion {
   id: number;
   text: string;
@@ -26,115 +27,116 @@ interface Suggestion {
 
 export default function HomeScreen() {
   const router = useRouter(); // Get navigation object from useRouter
-  const [userName, setUserName] = useState<string>("");
-  const [suggestionsVisible, setSuggestionsVisible] = useState(true);
-  const [needsAnalysis, setNeedsAnalysis] = useState(false);
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [userName, setUserName] = useState<string>(""); // State to store the user's name
+  const [suggestionsVisible, setSuggestionsVisible] = useState(true); // State to control visibility of suggestions
+  const [needsAnalysis, setNeedsAnalysis] = useState(false); // State to determine if analysis is needed
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]); // State to store outfit suggestions
+  const [loading, setLoading] = useState(false); // State to track if suggestions are loading
 
   useEffect(() => {
     const checkUserMeasurements = async () => {
       try {
-        const user = auth.currentUser;
+        const user = auth.currentUser; // Get current authenticated user
         if (user) {
-          const userProfile = await getUserProfile(user.uid);
+          const userProfile = await getUserProfile(user.uid); // Fetch user profile data
           if (userProfile.gender === "Female" && !userProfile.measurements) {
-            router.push("/profile/measurements");
+            router.push("/profile/measurements"); // Redirect to measurements page if not available
           }
         }
       } catch (error) {
-        console.error("Error checking user measurements:", error);
+        console.error("Error checking user measurements:", error); // Log any errors
       }
     };
 
     checkUserMeasurements();
-  }, []);
+  }, []); // Run once when component mounts
 
   useEffect(() => {
     const checkUserAnalysis = async () => {
       try {
-        const user = auth.currentUser;
+        const user = auth.currentUser; // Get current authenticated user
         if (user) {
-          const db = getFirestore();
-          const userRef = doc(db, "users", user.uid);
-          const userDoc = await getDoc(userRef);
+          const db = getFirestore(); // Initialize Firestore
+          const userRef = doc(db, "users", user.uid); // Reference to user document
+          const userDoc = await getDoc(userRef); // Get user document
 
           if (userDoc.exists()) {
             const userData = userDoc.data();
             if (!userData.dominantColor) {
-              setNeedsAnalysis(true);
+              setNeedsAnalysis(true); // Set flag if color analysis is needed
             }
           }
         }
       } catch (error) {
-        console.error("Error checking user analysis:", error);
+        console.error("Error checking user analysis:", error); // Log any errors
       }
     };
 
     checkUserAnalysis();
-  }, []);
+  }, []); // Run once when component mounts
 
   useEffect(() => {
     const fetchUserName = async () => {
       try {
-        const user = auth.currentUser;
+        const user = auth.currentUser; // Get current authenticated user
         if (user) {
-          const userProfile = await getUserProfile(user.uid);
+          const userProfile = await getUserProfile(user.uid); // Fetch user profile data
           if (userProfile.fullName) {
-            setUserName(userProfile.fullName);
+            setUserName(userProfile.fullName); // Set user name if available
           }
         }
       } catch (error) {
-        console.error("Error fetching user name:", error);
+        console.error("Error fetching user name:", error); // Log any errors
       }
     };
 
     fetchUserName();
-  }, []);
+  }, []); // Run once when component mounts
 
   useEffect(() => {
     const fetchSuggestionsFromFirebase = async () => {
       try {
-        const user = auth.currentUser;
+        const user = auth.currentUser; // Get current authenticated user
         if (!user) return;
 
-        const db = getFirestore();
-        const userRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userRef);
+        const db = getFirestore(); // Initialize Firestore
+        const userRef = doc(db, "users", user.uid); // Reference to user document
+        const userDoc = await getDoc(userRef); // Get user document
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
           if (userData.suggestions) {
             setSuggestions(
               userData.suggestions.map((suggestion: any, index: number) => ({
-                id: index + 1,
-                text: suggestion.text,
+                id: index + 1, // Assign ID to each suggestion
+                text: suggestion.text, // Store suggestion text
               }))
             );
           }
         }
       } catch (error) {
-        console.error("Error fetching suggestions from Firebase:", error);
+        console.error("Error fetching suggestions from Firebase:", error); // Log any errors
       }
     };
 
     fetchSuggestionsFromFirebase();
-  }, []);
+  }, []); // Run once when component mounts
 
+  // Function to fetch new outfit suggestions from ARLIAI API
   const fetchSuggestions = async () => {
     try {
-      const user = auth.currentUser;
+      const user = auth.currentUser; // Get current authenticated user
       if (!user) return;
 
-      const userProfile = await getUserProfile(user.uid);
-      const db = getFirestore();
-      const userRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userRef);
+      const userProfile = await getUserProfile(user.uid); // Fetch user profile data
+      const db = getFirestore(); // Initialize Firestore
+      const userRef = doc(db, "users", user.uid); // Reference to user document
+      const userDoc = await getDoc(userRef); // Get user document
       const userData = userDoc.data();
 
       if (userData?.dominantColor && userData?.bodyType) {
         const response = await axios.post(
-          "https://api.arliai.com/v1/chat/completions",
+          "https://api.arliai.com/v1/chat/completions", // API endpoint for outfit suggestions
           {
             model: "Mistral-Nemo-12B-Instruct-2407",
             messages: [
@@ -182,44 +184,47 @@ export default function HomeScreen() {
         }
 
         try {
-          const newSuggestions = JSON.parse(content);
+          const newSuggestions = JSON.parse(content); // Parse the API response
           const formattedSuggestions = newSuggestions.map(
             (suggestion: any, index: number) => ({
-              id: index + 1,
-              text: suggestion.text,
+              id: index + 1, // Assign ID to each suggestion
+              text: suggestion.text, // Store suggestion text
             })
           );
 
-          setSuggestions(formattedSuggestions);
+          setSuggestions(formattedSuggestions); // Update suggestions state
 
           // Save suggestions to Firebase
           await updateDoc(userRef, {
             suggestions: formattedSuggestions.map((s) => ({ text: s.text })),
           });
         } catch (parseError) {
-          console.error("Error parsing API response:", parseError);
+          console.error("Error parsing API response:", parseError); // Log parsing errors
         }
       }
     } catch (error) {
-      console.error("Error generating suggestions:", error);
+      console.error("Error generating suggestions:", error); // Log any errors
     }
   };
 
+  // Function to handle refreshing suggestions
   const handleRefreshSuggestions = async () => {
-    setLoading(true);
+    setLoading(true); // Set loading state to true
     try {
-      await fetchSuggestions();
+      await fetchSuggestions(); // Fetch new suggestions
     } catch (error) {
-      console.error("Error refreshing suggestions:", error);
+      console.error("Error refreshing suggestions:", error); // Log any errors
     } finally {
-      setLoading(false);
+      setLoading(false); // Reset loading state
     }
   };
 
+  // Function to toggle suggestions visibility
   const toggleSuggestions = () => {
-    setSuggestionsVisible(!suggestionsVisible);
+    setSuggestionsVisible(!suggestionsVisible); // Toggle visibility
   };
 
+  // Function to handle navigating to the Chat screen
   const handleChatPress = () => {
     router.replace("/chat/main"); // Navigate to the Chat screen
   };
@@ -237,6 +242,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Display analysis reminder if analysis is needed */}
       {needsAnalysis && (
         <TouchableOpacity
           style={styles.analysisReminder}
@@ -250,6 +256,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       )}
 
+      {/* Content area */}
       <View style={styles.contentContainer}>
         <View style={styles.titleContainer}>
           <Text style={[styles.heading, styles.centerText]}>
@@ -259,6 +266,8 @@ export default function HomeScreen() {
             Your Personal Fashion Advisor
           </Text>
         </View>
+
+        {/* Suggestions section */}
         <View style={styles.sectionContainer}>
           <View style={styles.suggestionsHeader}>
             <Text style={[styles.title, styles.Subheading]}>
@@ -276,6 +285,8 @@ export default function HomeScreen() {
               />
             </TouchableOpacity>
           </View>
+
+          {/* Render suggestions */}
           {suggestions.length > 0 ? (
             suggestions.map((suggestion) => (
               <View key={suggestion.id} style={styles.suggestionMock}>
@@ -312,6 +323,8 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
+
+        {/* Chat section */}
         <View style={styles.sectionContainer}>
           <Text style={[styles.title, styles.Subheading]}>
             Talk with AI Advisor
@@ -540,4 +553,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 16,
   },
-});
+}); 
+
+
