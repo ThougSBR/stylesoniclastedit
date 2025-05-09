@@ -22,26 +22,28 @@ import {
 } from "firebase/firestore";
 import { getUserProfile } from "../../services/authService";
 
+// Define base categories for clothing
 const baseCategories = ["Pants", "Shoes", "Shirts", "Jackets", "Accessories"];
 const femaleCategories = ["Dresses", "Abayas"];
 
 const UploadScreen = () => {
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [name, setName] = useState<string>("");
-  const [isFemale, setIsFemale] = useState(false);
-  const [categories, setCategories] = useState(baseCategories);
-  const router = useRouter();
+  const [selectedImage, setSelectedImage] = useState<string | null>(null); // State for the selected image
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null); // State for the selected category
+  const [name, setName] = useState<string>(""); // State for the name input field
+  const [isFemale, setIsFemale] = useState(false); // State to check if user is female
+  const [categories, setCategories] = useState(baseCategories); // Categories list to display in picker
+  const router = useRouter(); // Router for navigation
 
+  // Effect hook to check if user is female and set categories accordingly
   useEffect(() => {
     const checkUserGender = async () => {
       try {
-        const user = auth.currentUser;
+        const user = auth.currentUser; // Get the current user
         if (user) {
-          const userProfile = await getUserProfile(user.uid);
+          const userProfile = await getUserProfile(user.uid); // Fetch user profile
           if (userProfile.gender === "Female") {
-            setIsFemale(true);
-            setCategories([...baseCategories, ...femaleCategories]);
+            setIsFemale(true); // If user is female, set the isFemale state
+            setCategories([...baseCategories, ...femaleCategories]); // Add female categories
           }
         }
       } catch (error) {
@@ -49,91 +51,96 @@ const UploadScreen = () => {
       }
     };
 
-    checkUserGender();
+    checkUserGender(); // Call the function to check gender
   }, []);
 
+  // Handle image picking from the gallery
   const handleImagePick = async () => {
     const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+      await ImagePicker.requestMediaLibraryPermissionsAsync(); // Request permission to access media library
 
     if (permissionResult.granted === false) {
-      Alert.alert("Permission to access camera roll is required!");
+      Alert.alert("Permission to access camera roll is required!"); // Show alert if permission denied
       return;
     }
     const pickerResult = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [1, 1],
+      aspect: [1, 1], // Aspect ratio of the picked image
     });
 
     if (!pickerResult.canceled) {
-      setSelectedImage(pickerResult.assets[0].uri);
+      setSelectedImage(pickerResult.assets[0].uri); // Set the selected image URI
     }
   };
 
+  // Handle the upload of the selected image
   const handleUpload = async () => {
     if (!name) {
-      Alert.alert("Error", "Please enter a name for the item");
+      Alert.alert("Error", "Please enter a name for the item"); // Alert if name is not entered
       return;
     }
     if (!selectedImage) {
-      Alert.alert("Error", "Please select an image");
+      Alert.alert("Error", "Please select an image"); // Alert if no image is selected
       return;
     }
     if (!selectedCategory) {
-      Alert.alert("Error", "Please select a category");
+      Alert.alert("Error", "Please select a category"); // Alert if no category is selected
       return;
     }
 
     try {
-      const formData = new FormData();
+      const formData = new FormData(); // Prepare the form data for the image upload
       formData.append("image", {
-        uri: selectedImage,
-        name: "clothing.jpg",
-        type: "image/jpeg",
+        uri: selectedImage, // Image URI
+        name: "clothing.jpg", // Name of the image file
+        type: "image/jpeg", // Type of the image file
       });
 
+      // Send the image to the backend for upload
       const response = await fetch("http://192.168.0.16:5000/upload", {
         method: "POST",
         body: formData,
         headers: {
-          "Content-Type": "multipart/form-data",
+          "Content-Type": "multipart/form-data", // Set content type to multipart/form-data
         },
       });
 
-      const result = await response.json();
+      const result = await response.json(); // Get the response data
       console.log("Image upload result:", result);
       if (result.success) {
-        const userId = auth.currentUser?.uid;
+        const userId = auth.currentUser?.uid; // Get the user ID
         if (userId) {
-          const db = getFirestore();
-          const userRef = doc(db, "users", userId);
+          const db = getFirestore(); // Initialize Firestore
+          const userRef = doc(db, "users", userId); // Reference to the user's document
           await updateDoc(userRef, {
             [`${selectedCategory.toLowerCase()}`]: arrayUnion({
-              imageId: result.imageId,
-              name: name,
-              imageUrl: `http://192.168.0.16:5000/uploads/${result.imageId}`,
-            }), // Save name and full image URL with the item
+              imageId: result.imageId, // Image ID from the response
+              name: name, // Name of the item
+              imageUrl: `http://192.168.0.16:5000/uploads/${result.imageId}`, // Full image URL
+            }), // Add new item to the selected category
           });
-          Alert.alert("Success", "Image uploaded successfully");
-          router.navigate("/explore");
+          Alert.alert("Success", "Image uploaded successfully"); // Show success message
+          router.navigate("/explore"); // Navigate to the explore page
         }
       } else {
         console.error("Failed to upload image:", result.error);
-        Alert.alert("Failed to upload image");
+        Alert.alert("Failed to upload image"); // Show error message
       }
     } catch (error) {
       console.error("Error uploading image:", error);
-      Alert.alert("Error uploading image");
+      Alert.alert("Error uploading image"); // Show error message
     }
   };
 
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <FontAwesome5 name="arrow-left" size={24} color="#A0A897" />
+        <FontAwesome5 name="arrow-left" size={24} color="#A0A897" /> {/* Back button */}
       </TouchableOpacity>
       <Text style={styles.title}>Upload Clothes</Text>
+
+      {/* Image Picker */}
       <TouchableOpacity style={styles.imagePicker} onPress={handleImagePick}>
         {selectedImage ? (
           <>
@@ -145,23 +152,29 @@ const UploadScreen = () => {
           <Text style={styles.imagePickerText}>Select Image</Text>
         )}
       </TouchableOpacity>
+
+      {/* Name input */}
       <TextInput
         style={styles.input}
         placeholder="Enter Name"
         placeholderTextColor="#A0A897"
         value={name}
-        onChangeText={setName}
+        onChangeText={setName} // Update name state on input change
       />
+
+      {/* Category Picker */}
       <Picker
-        selectedValue={selectedCategory}
+        selectedValue={selectedCategory} // Selected category state
         style={styles.picker}
-        onValueChange={(itemValue) => setSelectedCategory(itemValue)}
+        onValueChange={(itemValue) => setSelectedCategory(itemValue)} // Update category on change
       >
         <Picker.Item label="Select Category" value={null} />
         {categories.map((category, index) => (
           <Picker.Item key={index} label={category} value={category} />
         ))}
       </Picker>
+
+      {/* Upload Button */}
       <TouchableOpacity style={styles.uploadButton} onPress={handleUpload}>
         <Text style={styles.uploadButtonText}>Upload</Text>
       </TouchableOpacity>
@@ -169,6 +182,7 @@ const UploadScreen = () => {
   );
 };
 
+// Styles for the upload screen
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -257,3 +271,4 @@ const styles = StyleSheet.create({
 });
 
 export default UploadScreen;
+
