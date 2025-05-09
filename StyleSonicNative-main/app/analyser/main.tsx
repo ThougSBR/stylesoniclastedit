@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react"; // Importing React and hooks
 import {
   View,
   TouchableOpacity,
@@ -12,31 +12,33 @@ import {
   ScrollView,
   Dimensions,
   RefreshControl,
-} from "react-native";
-import * as ImagePicker from "expo-image-picker";
-import { MaterialIcons } from "@expo/vector-icons";
-import { auth } from "../../services/firebaseConfig";
-import { doc, updateDoc, getDoc } from "firebase/firestore";
-import { getFirestore } from "firebase/firestore";
-import { useRouter } from "expo-router";
+} from "react-native"; // Importing core React Native components
+import * as ImagePicker from "expo-image-picker"; // Importing Image Picker for gallery and camera access
+import { MaterialIcons } from "@expo/vector-icons"; // Importing MaterialIcons for icons
+import { auth } from "../../services/firebaseConfig"; // Firebase authentication
+import { doc, updateDoc, getDoc } from "firebase/firestore"; // Firestore functions for data handling
+import { getFirestore } from "firebase/firestore"; // Import Firestore instance
+import { useRouter } from "expo-router"; // Import router for navigation
 
 export default function Explore() {
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
-  const [faceCoords, setFaceCoords] = useState(null);
-  const [hairCoords, setHairCoords] = useState(null);
-  const [eyeCoords, setEyeCoords] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [detectedSeason, setDetectedSeason] = useState("");
-  const [outfitSuggestions, setOutfitSuggestions] = useState([]);
-  const [faceSelected, setFaceSelected] = useState(false);
-  const [hairSelected, setHairSelected] = useState(false);
-  const [eyeSelected, setEyeSelected] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [analysisStarted, setAnalysisStarted] = useState(false);
+  // Declare state variables for handling the app functionality
+  const [selectedImage, setSelectedImage] = useState(null); // Store selected image URI
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 }); // Store image dimensions
+  const [faceCoords, setFaceCoords] = useState(null); // Coordinates of the face
+  const [hairCoords, setHairCoords] = useState(null); // Coordinates of the hair
+  const [eyeCoords, setEyeCoords] = useState(null); // Coordinates of the eyes
+  const [uploading, setUploading] = useState(false); // Uploading state for image processing
+  const [detectedSeason, setDetectedSeason] = useState(""); // Detected season from analysis
+  const [outfitSuggestions, setOutfitSuggestions] = useState([]); // Outfit suggestions based on analysis
+  const [faceSelected, setFaceSelected] = useState(false); // Track if face is selected
+  const [hairSelected, setHairSelected] = useState(false); // Track if hair is selected
+  const [eyeSelected, setEyeSelected] = useState(false); // Track if eye is selected
+  const [refreshing, setRefreshing] = useState(false); // Refreshing state for pull-to-refresh
+  const [analysisStarted, setAnalysisStarted] = useState(false); // State to track if analysis has started
 
-  const router = useRouter();
+  const router = useRouter(); // Router instance for navigation
 
+  // Request camera permissions on app startup (only for non-web platforms)
   useEffect(() => {
     (async () => {
       if (Platform.OS !== "web") {
@@ -45,124 +47,133 @@ export default function Explore() {
           alert("Sorry, we need camera roll permissions to make this work!");
         }
       }
-      fetchExistingAnalysis();
+      fetchExistingAnalysis(); // Fetch existing analysis data from Firebase
     })();
   }, []);
 
+  // Handle the back button press logic
   const handleBackPress = () => {
     if (analysisStarted) {
-      setAnalysisStarted(false);
+      setAnalysisStarted(false); // Stop analysis if in progress
     } else {
-      router.replace("/profile/profile");
+      router.replace("/profile/profile"); // Navigate to profile screen if not analyzing
     }
   };
 
+  // Function for pull-to-refresh logic
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    setSelectedImage(null);
-    setFaceCoords(null);
+    setRefreshing(true); // Set refreshing state to true
+    setSelectedImage(null); // Clear selected image
+    setFaceCoords(null); // Reset coordinates
     setHairCoords(null);
     setEyeCoords(null);
-    setFaceSelected(false);
+    setFaceSelected(false); // Reset selection states
     setHairSelected(false);
     setEyeSelected(false);
-    setDetectedSeason("");
-    setAnalysisStarted(false);
-    setOutfitSuggestions([]);
-    await fetchExistingAnalysis();
-    setRefreshing(false);
+    setDetectedSeason(""); // Reset detected season
+    setAnalysisStarted(false); // Reset analysis started state
+    setOutfitSuggestions([]); // Reset outfit suggestions
+    await fetchExistingAnalysis(); // Fetch data again from Firebase
+    setRefreshing(false); // Set refreshing state to false after data is fetched
   }, []);
 
-  /** ✅ Function to Pick Image from Gallery */
+  // Function to pick image from the gallery
   const handleChoosePhoto = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images, // Limit to image files
+      allowsEditing: true, // Allow editing of the image
+      aspect: [4, 3], // Aspect ratio for cropping
+      quality: 1, // Max quality of the image
     });
 
-    console.log("Image Picker Result:", result); // Debugging Step
+    console.log("Image Picker Result:", result); // Debugging step to check the result
 
     if (!result.canceled) {
-      setSelectedImage(result.assets[0].uri);
-      setFaceCoords(null);
+      // If user picks an image
+      setSelectedImage(result.assets[0].uri); // Set the image URI
+      setFaceCoords(null); // Reset selected coordinates
       setHairCoords(null);
       setEyeCoords(null);
-      setFaceSelected(false);
+      setFaceSelected(false); // Reset selection flags
       setHairSelected(false);
       setEyeSelected(false);
 
+      // Get the image size to calculate scale factor for tap locations
       Image.getSize(result.assets[0].uri, (width, height) => {
         setImageSize({ width, height });
       });
     }
   };
 
-  /** ✅ Function to Capture Photo */
+  // Function to capture an image using the camera
   const handleTakePhoto = async () => {
     let result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 1,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images, // Limit to image files
+      allowsEditing: true, // Allow editing of the image
+      aspect: [4, 3], // Aspect ratio for cropping
+      quality: 1, // Max quality of the image
     });
 
-    console.log("Camera Capture Result:", result); // Debugging Step
+    console.log("Camera Capture Result:", result); // Debugging step to check the result
 
     if (!result.canceled) {
-      setSelectedImage(result.assets[0].uri);
-      setFaceCoords(null);
+      // If user takes a photo
+      setSelectedImage(result.assets[0].uri); // Set the image URI
+      setFaceCoords(null); // Reset selected coordinates
       setHairCoords(null);
       setEyeCoords(null);
-      setFaceSelected(false);
+      setFaceSelected(false); // Reset selection flags
       setHairSelected(false);
       setEyeSelected(false);
+
+      // Get the image size to calculate scale factor for tap locations
       Image.getSize(result.assets[0].uri, (width, height) => {
         setImageSize({ width, height });
       });
     }
   };
 
+  // Function to handle image taps for selecting face, hair, or eye regions
   const handleImageTap = (event: any, type: any) => {
-    console.log("Image Tap Event:", event.nativeEvent); // Debugging Step
+    console.log("Image Tap Event:", event.nativeEvent); // Debugging step to check event details
     if (!selectedImage) {
-      alert("Please select an image first.");
+      alert("Please select an image first."); // Alert if no image is selected
       return;
     }
 
-    const { locationX, locationY } = event.nativeEvent;
-    const screenWidth = Dimensions.get("window").width - 40;
-    const scaleFactor = imageSize.width ? screenWidth / imageSize.width : 1;
+    const { locationX, locationY } = event.nativeEvent; // Get tap coordinates
+    const screenWidth = Dimensions.get("window").width - 40; // Calculate screen width
+    const scaleFactor = imageSize.width ? screenWidth / imageSize.width : 1; // Calculate scale factor
 
+    // Adjust coordinates according to the image scale
     const adjustedX = Math.floor(locationX / scaleFactor);
     const adjustedY = Math.floor(locationY / scaleFactor);
 
-    console.log(`Tapped at (${adjustedX}, ${adjustedY}) for ${type}`); // Debugging Step
+    console.log(`Tapped at (${adjustedX}, ${adjustedY}) for ${type}`); // Debugging step
 
     if (!faceSelected) {
       setFaceCoords({ x: adjustedX, y: adjustedY });
-      setFaceSelected(true);
+      setFaceSelected(true); // Mark face selected
     } else if (!hairSelected) {
       setHairCoords({ x: adjustedX, y: adjustedY });
-      setHairSelected(true);
+      setHairSelected(true); // Mark hair selected
     } else if (!eyeSelected) {
       setEyeCoords({ x: adjustedX, y: adjustedY });
-      setEyeSelected(true);
+      setEyeSelected(true); // Mark eye selected
     }
   };
 
-  /** ✅ Upload Image & Coordinates to Backend */
+  // Function to upload the image and coordinates to the server for analysis
   const uploadImageToServer = async () => {
     if (!selectedImage || !faceCoords || !hairCoords || !eyeCoords) {
-      alert(
-        "Please select an image and tap to pick face, hair, and eye colors."
-      );
-      return;
+      alert("Please select an image and tap to pick face, hair, and eye colors.");
+      return; // Ensure all selections are made before uploading
     }
 
     try {
-      setUploading(true);
+      setUploading(true); // Set uploading state to true
+
+      // Prepare form data for the request
       const formData = new FormData();
       formData.append("image", {
         uri: selectedImage,
@@ -174,7 +185,7 @@ export default function Explore() {
       formData.append("hairCoords", JSON.stringify(hairCoords));
       formData.append("eyeCoords", JSON.stringify(eyeCoords));
 
-      console.log("Uploading Image Data:", formData); // Debugging Step
+      console.log("Uploading Image Data:", formData); // Debugging step
 
       const response = await fetch("http://192.168.0.16:5000/analyse", {
         method: "POST",
@@ -182,41 +193,43 @@ export default function Explore() {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      const data = await response.json();
-      console.log("Server Response:", data); // Debugging Step
+      const data = await response.json(); // Parse server response
+      console.log("Server Response:", data); // Debugging step
 
       if (data.detectedSeason) {
-        setFaceCoords(null);
+        // If analysis was successful
+        setFaceCoords(null); // Reset the selected coordinates
         setHairCoords(null);
         setEyeCoords(null);
-        setFaceSelected(false);
+        setFaceSelected(false); // Reset selection flags
         setHairSelected(false);
         setEyeSelected(false);
-        setDetectedSeason(data.detectedSeason);
-        setOutfitSuggestions(data.outfitSuggestions);
+        setDetectedSeason(data.detectedSeason); // Set the detected season
+        setOutfitSuggestions(data.outfitSuggestions); // Set the outfit suggestions
 
-        saveDataToFirebase(data);
-        router.replace("/profile/profile");
+        saveDataToFirebase(data); // Save the analysis data to Firebase
+        router.replace("/profile/profile"); // Navigate back to the profile screen
       } else {
-        alert("Failed to analyze image.");
+        alert("Failed to analyze image."); // Show error if analysis failed
       }
     } catch (error) {
-      console.error("Upload error:", error);
+      console.error("Upload error:", error); // Log any errors during upload
     } finally {
-      setUploading(false);
+      setUploading(false); // Reset uploading state
     }
   };
 
-  /** ✅ Save Data to Firebase */
+  // Function to save analysis data to Firebase
   const saveDataToFirebase = async (data: any) => {
     try {
-      const user = auth.currentUser;
-      const db = getFirestore();
+      const user = auth.currentUser; // Get current authenticated user
+      const db = getFirestore(); // Initialize Firestore
       if (!user) {
         alert("User not logged in.");
-        return;
+        return; // Ensure user is logged in
       }
 
+      // Update user's document with analysis data
       await updateDoc(doc(db, "users", user.uid), {
         dominantColor: data.dominantColor,
         colorPalette: data.colorPalette,
@@ -224,64 +237,70 @@ export default function Explore() {
         outfitSuggestions: data.outfitSuggestions,
       });
 
-      alert("Image & color analysis saved in Firebase!");
+      alert("Image & color analysis saved in Firebase!"); // Show success message
     } catch (error) {
-      console.error("Error saving image data:", error);
+      console.error("Error saving image data:", error); // Log any errors while saving
     }
   };
 
-  /** ✅ Fetch Existing Analysis from Firebase */
+  // Function to fetch existing analysis data from Firebase
   const fetchExistingAnalysis = async () => {
     try {
-      const user = auth.currentUser;
-      const db = getFirestore();
+      const user = auth.currentUser; // Get current authenticated user
+      const db = getFirestore(); // Initialize Firestore
       if (!user) {
         alert("User not logged in.");
-        return;
+        return; // Ensure user is logged in
       }
 
-      const docRef = doc(db, "users", user.uid);
-      const docSnap = await getDoc(docRef);
+      const docRef = doc(db, "users", user.uid); // Reference to user's document in Firestore
+      const docSnap = await getDoc(docRef); // Get user document
 
       if (docSnap.exists()) {
-        const data = docSnap.data();
-        setDetectedSeason(data.detectedSeason || "");
-        setOutfitSuggestions(data.outfitSuggestions || []);
+        const data = docSnap.data(); // Extract data from Firestore document
+        setDetectedSeason(data.detectedSeason || ""); // Set the detected season
+        setOutfitSuggestions(data.outfitSuggestions || []); // Set outfit suggestions
       } else {
-        console.log("No such document!");
+        console.log("No such document!"); // Handle case where document doesn't exist
       }
     } catch (error) {
-      console.error("Error fetching existing analysis:", error);
+      console.error("Error fetching existing analysis:", error); // Log any errors
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Back button */}
       <TouchableOpacity
         onPress={() => handleBackPress()}
         style={styles.backButton}
       >
         <MaterialIcons name="arrow-back" size={24} color="#FFF" />
       </TouchableOpacity>
+
       <ScrollView
         contentContainerStyle={[
           styles.scrollContainer,
           !analysisStarted && styles.centeredContainer,
         ]}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} /> // Refresh control for pull-to-refresh
         }
       >
         {detectedSeason && (
           <Text style={styles.resultText}>
-            Detected Season: {detectedSeason}
+            Detected Season: {detectedSeason} {/* Display detected season */}
           </Text>
         )}
+
+        {/* Display outfit suggestions */}
         {outfitSuggestions.map((suggestion, index) => (
           <Text key={index} style={styles.suggestionText}>
-            {suggestion}
+            {suggestion} {/* Display each outfit suggestion */}
           </Text>
         ))}
+
+        {/* Start analysis button */}
         {!analysisStarted && (
           <TouchableOpacity
             onPress={() => setAnalysisStarted(true)}
@@ -290,6 +309,8 @@ export default function Explore() {
             <Text style={styles.startButtonText}>Analyse Colour</Text>
           </TouchableOpacity>
         )}
+
+        {/* Show analysis tools after starting analysis */}
         {analysisStarted && (
           <>
             <TouchableOpacity
@@ -301,11 +322,12 @@ export default function Explore() {
                 ])
               }
               style={styles.imagePlaceholder}
-              disabled={uploading}
+              disabled={uploading} // Disable if uploading
             >
               <MaterialIcons name="camera-alt" size={50} color="#666" />
             </TouchableOpacity>
 
+            {/* If image is selected, show the selected image */}
             {selectedImage ? (
               <>
                 <TouchableOpacity
@@ -321,6 +343,7 @@ export default function Explore() {
                   Tap on the image to select: Face, Hair, and Eye colors.
                 </Text>
 
+                {/* Show checkboxes for face, hair, and eye selections */}
                 <View style={styles.checkContainer}>
                   <View style={styles.checkItem}>
                     <Text style={styles.checkText}>Face</Text>
@@ -354,6 +377,7 @@ export default function Explore() {
                   </View>
                 </View>
 
+                {/* Upload button */}
                 <TouchableOpacity
                   onPress={uploadImageToServer}
                   style={styles.uploadButton}
@@ -447,4 +471,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     textAlign: "center",
   },
-});
+}); 
+
+
