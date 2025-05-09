@@ -24,45 +24,45 @@ import {
 
 const ShoesScreen = () => {
   const [shoes, setShoes] = useState<
-    { imageId: string; name: string; imageUrl: string }[]
+    { imageId: string; name: string; imageUrl: string }[] // State to store shoes list
   >([]);
   const router = useRouter();
-  const [showShareModal, setShowShareModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false); // State for controlling modal visibility
   const [selectedShoe, setSelectedShoe] = useState<{
     imageId: string;
     name: string;
     imageUrl: string;
-  } | null>(null);
-  const [caption, setCaption] = useState("");
+  } | null>(null); // State for the selected shoe
+  const [caption, setCaption] = useState(""); // State for the caption to be added to the post
 
   useEffect(() => {
     const fetchShoes = async () => {
       try {
-        const userId = auth.currentUser?.uid;
+        const userId = auth.currentUser?.uid; // Get the current user ID
         if (userId) {
-          const db = getFirestore();
-          const userRef = doc(db, "users", userId);
-          const userDoc = await getDoc(userRef);
+          const db = getFirestore(); // Firestore database reference
+          const userRef = doc(db, "users", userId); // User document reference
+          const userDoc = await getDoc(userRef); // Get the user document
           if (userDoc.exists()) {
-            const userData = userDoc.data();
-            const shoesList = userData.shoes || [];
+            const userData = userDoc.data(); // Extract data from user document
+            const shoesList = userData.shoes || []; // Get shoes from user data
             // Ensure each shoe item has an imageUrl
             const shoesWithUrls = shoesList.map((shoe: any) => ({
               ...shoe,
               imageUrl:
                 shoe.imageUrl ||
-                `http://192.168.0.16:5000/uploads/${shoe.imageId}`,
+                `http://192.168.0.16:5000/uploads/${shoe.imageId}`, // Default imageUrl if not provided
             }));
-            setShoes(shoesWithUrls);
+            setShoes(shoesWithUrls); // Set shoes list in state
           }
         }
       } catch (error) {
-        console.error("Error fetching shoes:", error);
+        console.error("Error fetching shoes:", error); // Error handling
         Alert.alert("Error", "Failed to fetch shoes");
       }
     };
 
-    fetchShoes();
+    fetchShoes(); // Fetch shoes when component mounts
   }, []);
 
   const handleShare = async (shoe: {
@@ -71,43 +71,38 @@ const ShoesScreen = () => {
     imageUrl: string;
   }) => {
     if (!shoe.imageUrl) {
-      Alert.alert("Error", "Cannot share outfit: Image URL is missing");
+      Alert.alert("Error", "Cannot share outfit: Image URL is missing"); // Image URL validation
       return;
     }
-    setSelectedShoe(shoe);
-    setShowShareModal(true);
+    setSelectedShoe(shoe); // Set selected shoe for sharing
+    setShowShareModal(true); // Show the share modal
   };
 
   const handlePost = async () => {
     if (!selectedShoe || !caption.trim()) {
-      Alert.alert("Error", "Please enter a caption");
-      return;
-    }
-
-    if (!selectedShoe.imageUrl) {
-      Alert.alert("Error", "Cannot share outfit: Image URL is missing");
+      Alert.alert("Error", "Please enter a caption"); // Validation for caption input
       return;
     }
 
     try {
-      const user = auth.currentUser;
+      const user = auth.currentUser; // Get current user
       if (user) {
-        const db = getFirestore();
-        await addDoc(collection(db, "posts"), {
+        const db = getFirestore(); // Firestore database reference
+        await addDoc(collection(db, "posts"), { // Add a new post in Firestore
           userId: user.uid,
-          userName: "Anonymous",
-          imageUrl: selectedShoe.imageUrl,
-          caption: caption.trim(),
-          timestamp: new Date(),
-          likes: 0,
+          userName: "Anonymous", // Username (can be modified later)
+          imageUrl: selectedShoe.imageUrl, // Image URL of the selected shoe
+          caption: caption.trim(), // Caption for the post
+          timestamp: new Date(), // Current timestamp
+          likes: 0, // Initial likes count
         });
 
-        setShowShareModal(false);
-        setCaption("");
-        Alert.alert("Success", "Outfit shared successfully!");
+        setShowShareModal(false); // Close modal after post
+        setCaption(""); // Clear caption input
+        Alert.alert("Success", "Outfit shared successfully!"); // Success message
       }
     } catch (error) {
-      console.error("Error sharing outfit:", error);
+      console.error("Error sharing outfit:", error); // Error handling
       Alert.alert("Error", "Failed to share outfit");
     }
   };
@@ -118,20 +113,20 @@ const ShoesScreen = () => {
     imageUrl: string;
   }) => {
     try {
-      const user = auth.currentUser;
+      const user = auth.currentUser; // Get current user
       if (user) {
-        const db = getFirestore();
-        const shoeRef = doc(db, "clothes", shoe.imageId);
+        const db = getFirestore(); // Firestore database reference
+        const shoeRef = doc(db, "clothes", shoe.imageId); // Reference to shoe document in Firestore
         await updateDoc(shoeRef, {
-          deleted: true,
+          deleted: true, // Mark the shoe as deleted
         });
         setShoes((prevShoes) =>
-          prevShoes.filter((s) => s.imageId !== shoe.imageId)
+          prevShoes.filter((s) => s.imageId !== shoe.imageId) // Remove the deleted shoe from the list
         );
-        Alert.alert("Success", "Shoe deleted successfully");
+        Alert.alert("Success", "Shoe deleted successfully"); // Success message
       }
     } catch (error) {
-      console.error("Error deleting shoe:", error);
+      console.error("Error deleting shoe:", error); // Error handling
       Alert.alert("Error", "Failed to delete shoe");
     }
   };
@@ -153,13 +148,13 @@ const ShoesScreen = () => {
               <View style={styles.buttonContainer}>
                 <TouchableOpacity
                   style={styles.shareButton}
-                  onPress={() => handleShare(shoe)}
+                  onPress={() => handleShare(shoe)} // Share button
                 >
                   <Ionicons name="share-social" size={24} color="#FFC1A1" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.deleteButton}
-                  onPress={() => handleDelete(shoe)}
+                  onPress={() => handleDelete(shoe)} // Delete button
                 >
                   <FontAwesome5 name="trash" size={24} color="#FFC1A1" />
                 </TouchableOpacity>
@@ -171,12 +166,12 @@ const ShoesScreen = () => {
 
       <TouchableOpacity
         style={styles.addButton}
-        onPress={() => router.push("/closet/upload?category=shoes")}
+        onPress={() => router.push("/closet/upload?category=shoes")} // Button to add new shoes
       >
         <Text style={styles.addButtonText}>Add New Shoes</Text>
       </TouchableOpacity>
 
-      {showShareModal && (
+      {showShareModal && ( // Share modal
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Share Outfit</Text>
@@ -184,22 +179,22 @@ const ShoesScreen = () => {
               style={styles.captionInput}
               placeholder="Write a caption..."
               value={caption}
-              onChangeText={setCaption}
+              onChangeText={setCaption} // Caption input field
               multiline
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => {
-                  setShowShareModal(false);
-                  setCaption("");
+                  setShowShareModal(false); // Close modal
+                  setCaption(""); // Clear caption input
                 }}
               >
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.shareButtonStyle]}
-                onPress={handlePost}
+                onPress={handlePost} // Post the outfit with caption
               >
                 <Text style={styles.modalButtonText}>Share</Text>
               </TouchableOpacity>
@@ -344,3 +339,4 @@ const styles = StyleSheet.create({
 });
 
 export default ShoesScreen;
+
