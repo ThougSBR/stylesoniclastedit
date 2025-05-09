@@ -23,86 +23,91 @@ import {
 } from "firebase/firestore";
 
 const ShirtsScreen = () => {
+  // State to hold the list of shirts
   const [shirts, setShirts] = useState<
     { imageId: string; name: string; imageUrl: string }[]
   >([]);
-  const router = useRouter();
-  const [showShareModal, setShowShareModal] = useState(false);
+  const router = useRouter(); // Router for navigation
+  const [showShareModal, setShowShareModal] = useState(false); // Modal visibility state
   const [selectedShirt, setSelectedShirt] = useState<{
     imageId: string;
     name: string;
     imageUrl: string;
-  } | null>(null);
-  const [caption, setCaption] = useState("");
+  } | null>(null); // Selected shirt for sharing
+  const [caption, setCaption] = useState(""); // Caption for sharing
 
   useEffect(() => {
+    // Function to fetch shirts from the user's data
     const fetchShirts = async () => {
       try {
-        const userId = auth.currentUser?.uid;
+        const userId = auth.currentUser?.uid; // Get the current user's ID
         if (userId) {
           const db = getFirestore();
-          const userRef = doc(db, "users", userId);
-          const userDoc = await getDoc(userRef);
+          const userRef = doc(db, "users", userId); // Reference to user's data in Firestore
+          const userDoc = await getDoc(userRef); // Get user document
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            const shirtsList = userData.shirts || [];
+            const shirtsList = userData.shirts || []; // Get shirts list from user data
             // Ensure each shirt item has an imageUrl
             const shirtsWithUrls = shirtsList.map((shirt: any) => ({
               ...shirt,
               imageUrl:
                 shirt.imageUrl ||
-                `http://192.168.0.16:5000/uploads/${shirt.imageId}`,
+                `http://192.168.0.16:5000/uploads/${shirt.imageId}`, // Default image URL if missing
             }));
-            setShirts(shirtsWithUrls);
+            setShirts(shirtsWithUrls); // Set the shirts in state
           }
         }
       } catch (error) {
-        console.error("Error fetching shirts:", error);
-        Alert.alert("Error", "Failed to fetch shirts");
+        console.error("Error fetching shirts:", error); // Log error
+        Alert.alert("Error", "Failed to fetch shirts"); // Alert on failure
       }
     };
 
-    fetchShirts();
+    fetchShirts(); // Fetch shirts when the component mounts
   }, []);
 
+  // Function to handle sharing a selected shirt
   const handleShare = async (shirt: {
     imageId: string;
     name: string;
     imageUrl: string;
   }) => {
-    setSelectedShirt(shirt);
-    setShowShareModal(true);
+    setSelectedShirt(shirt); // Set the selected shirt
+    setShowShareModal(true); // Show the share modal
   };
 
+  // Function to handle posting the shared shirt
   const handlePost = async () => {
     if (!selectedShirt || !caption.trim()) {
       Alert.alert("Error", "Please enter a caption");
-      return;
+      return; // Check if there's a selected shirt and a caption
     }
 
     try {
-      const user = auth.currentUser;
+      const user = auth.currentUser; // Get the current user
       if (user) {
         const db = getFirestore();
         await addDoc(collection(db, "posts"), {
           userId: user.uid,
-          userName: "Anonymous",
-          imageUrl: selectedShirt.imageUrl,
-          caption: caption.trim(),
-          timestamp: new Date(),
-          likes: 0,
+          userName: "Anonymous", // Use "Anonymous" as a default name for the user
+          imageUrl: selectedShirt.imageUrl, // Use selected shirt's image
+          caption: caption.trim(), // Use the caption inputted by the user
+          timestamp: new Date(), // Add a timestamp for the post
+          likes: 0, // Initialize likes as 0
         });
 
-        setShowShareModal(false);
-        setCaption("");
-        Alert.alert("Success", "Outfit shared successfully!");
+        setShowShareModal(false); // Close the share modal
+        setCaption(""); // Clear the caption
+        Alert.alert("Success", "Outfit shared successfully!"); // Success message
       }
     } catch (error) {
-      console.error("Error sharing outfit:", error);
-      Alert.alert("Error", "Failed to share outfit");
+      console.error("Error sharing outfit:", error); // Log error
+      Alert.alert("Error", "Failed to share outfit"); // Alert on failure
     }
   };
 
+  // Function to handle deleting a shirt
   const handleDelete = async (shirt: { imageId: string; name: string }) => {
     try {
       // Delete the image from the backend
@@ -115,25 +120,25 @@ const ShirtsScreen = () => {
 
       const result = await response.json();
       if (result.success) {
-        const userId = auth.currentUser?.uid;
+        const userId = auth.currentUser?.uid; // Get the current user's ID
         if (userId) {
           const db = getFirestore();
-          const userRef = doc(db, "users", userId);
+          const userRef = doc(db, "users", userId); // Reference to user's data in Firestore
           await updateDoc(userRef, {
-            shirts: arrayRemove(shirt),
+            shirts: arrayRemove(shirt), // Remove the shirt from the user's collection in Firestore
           });
           setShirts((prevShirts) =>
-            prevShirts.filter((s) => s.imageId !== shirt.imageId)
+            prevShirts.filter((s) => s.imageId !== shirt.imageId) // Update the state after deletion
           );
-          Alert.alert("Success", "Image deleted successfully");
+          Alert.alert("Success", "Image deleted successfully"); // Success message
         }
       } else {
-        console.error("Failed to delete image from backend:", result.error);
-        Alert.alert("Error", "Failed to delete image from backend");
+        console.error("Failed to delete image from backend:", result.error); // Log error
+        Alert.alert("Error", "Failed to delete image from backend"); // Alert on failure
       }
     } catch (error) {
-      console.error("Error deleting image:", error);
-      Alert.alert("Error", "Failed to delete image");
+      console.error("Error deleting image:", error); // Log error
+      Alert.alert("Error", "Failed to delete image"); // Alert on failure
     }
   };
 
@@ -154,13 +159,13 @@ const ShirtsScreen = () => {
               <View style={styles.buttonContainer}>
                 <TouchableOpacity
                   style={styles.shareButton}
-                  onPress={() => handleShare(shirt)}
+                  onPress={() => handleShare(shirt)} // Trigger handleShare when share button is pressed
                 >
                   <Ionicons name="share-social" size={24} color="#FFC1A1" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.deleteButton}
-                  onPress={() => handleDelete(shirt)}
+                  onPress={() => handleDelete(shirt)} // Trigger handleDelete when delete button is pressed
                 >
                   <FontAwesome5 name="trash" size={24} color="#FFC1A1" />
                 </TouchableOpacity>
@@ -172,7 +177,7 @@ const ShirtsScreen = () => {
 
       <TouchableOpacity
         style={styles.addButton}
-        onPress={() => router.push("/closet/upload?category=shirts")}
+        onPress={() => router.push("/closet/upload?category=shirts")} // Navigate to upload page
       >
         <Text style={styles.addButtonText}>Add New Shirt</Text>
       </TouchableOpacity>
@@ -185,22 +190,22 @@ const ShirtsScreen = () => {
               style={styles.captionInput}
               placeholder="Write a caption..."
               value={caption}
-              onChangeText={setCaption}
+              onChangeText={setCaption} // Update the caption state as user types
               multiline
             />
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => {
-                  setShowShareModal(false);
-                  setCaption("");
+                  setShowShareModal(false); // Close the share modal
+                  setCaption(""); // Clear the caption
                 }}
               >
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.shareButtonStyle]}
-                onPress={handlePost}
+                onPress={handlePost} // Post the shared shirt
               >
                 <Text style={styles.modalButtonText}>Share</Text>
               </TouchableOpacity>
@@ -345,3 +350,4 @@ const styles = StyleSheet.create({
 });
 
 export default ShirtsScreen;
+
