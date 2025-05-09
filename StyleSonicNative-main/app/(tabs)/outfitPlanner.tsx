@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react"; // Importing React and hooks
 import {
   View,
   Text,
@@ -7,13 +7,14 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
-} from "react-native";
-import { Calendar } from "react-native-calendars";
-import { useRouter } from "expo-router";
-import { FontAwesome5, FontAwesome } from "@expo/vector-icons";
-import { auth } from "../../services/firebaseConfig";
-import { getFirestore, doc, getDoc, updateDoc } from "firebase/firestore";
+} from "react-native"; // Importing core React Native components
+import { Calendar } from "react-native-calendars"; // Importing Calendar component for selecting dates
+import { useRouter } from "expo-router"; // Importing router for navigation
+import { FontAwesome5, FontAwesome } from "@expo/vector-icons"; // Importing FontAwesome icons
+import { auth } from "../../services/firebaseConfig"; // Importing Firebase authentication
+import { getFirestore, doc, getDoc, updateDoc } from "firebase/firestore"; // Importing Firebase Firestore functions
 
+// Sample marked dates for the calendar
 const markedDates = {
   "2023-10-10": { marked: true, dotColor: "#FFC1A1" },
   "2023-10-15": { marked: true, dotColor: "#FFC1A1" },
@@ -21,85 +22,95 @@ const markedDates = {
 };
 
 const PlannerHome = () => {
-  const router = useRouter();
-  const [outfitDetails, setOutfitDetails] = useState([]);
-  const [showOlderOutfits, setShowOlderOutfits] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const router = useRouter(); // Get navigation object from useRouter
+  const [outfitDetails, setOutfitDetails] = useState([]); // State to store the list of outfits
+  const [showOlderOutfits, setShowOlderOutfits] = useState(false); // State to toggle visibility of older outfits
+  const [refreshing, setRefreshing] = useState(false); // State to manage pull-to-refresh behavior
 
+  // Function to fetch outfit details from Firestore
   const fetchOutfits = async () => {
-    const userId = auth.currentUser?.uid;
+    const userId = auth.currentUser?.uid; // Get the current user's ID from Firebase authentication
     if (userId) {
-      const db = getFirestore();
-      const userRef = doc(db, "users", userId);
-      const userDoc = await getDoc(userRef);
+      const db = getFirestore(); // Initialize Firestore
+      const userRef = doc(db, "users", userId); // Reference to user's document in Firestore
+      const userDoc = await getDoc(userRef); // Get the user's document
+
       if (userDoc.exists()) {
         const data = userDoc.data();
         const sortedOutfits = (data.outfits || []).sort((a, b) =>
-          new Date(a.date) > new Date(b.date) ? 1 : -1
+          new Date(a.date) > new Date(b.date) ? 1 : -1 // Sort outfits by date
         );
-        setOutfitDetails(sortedOutfits);
+        setOutfitDetails(sortedOutfits); // Set the sorted outfit details in state
       }
     }
   };
 
+  // Function to handle pull-to-refresh action
   const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchOutfits();
-    setRefreshing(false);
+    setRefreshing(true); // Set refreshing state to true
+    await fetchOutfits(); // Fetch updated outfit details
+    setRefreshing(false); // Set refreshing state to false after data is fetched
   };
 
+  // Fetch outfits when the component mounts
   useEffect(() => {
     fetchOutfits();
   }, []);
 
+  // Function to delete an outfit from the list
   const deleteOutfit = (index) => {
     Alert.alert(
-      "Delete Outfit",
-      "Are you sure you want to delete this outfit?",
+      "Delete Outfit", // Title for the confirmation dialog
+      "Are you sure you want to delete this outfit?", // Message for the confirmation dialog
       [
         {
-          text: "Cancel",
+          text: "Cancel", // Cancel button
           style: "cancel",
         },
         {
-          text: "Delete",
+          text: "Delete", // Delete button
           onPress: async () => {
-            const userId = auth.currentUser?.uid;
+            const userId = auth.currentUser?.uid; // Get current user's ID
             if (userId) {
-              const db = getFirestore();
-              const userRef = doc(db, "users", userId);
-              const userDoc = await getDoc(userRef);
+              const db = getFirestore(); // Initialize Firestore
+              const userRef = doc(db, "users", userId); // Reference to user's document in Firestore
+              const userDoc = await getDoc(userRef); // Get the user's document
+
               if (userDoc.exists()) {
                 const data = userDoc.data();
-                const updatedOutfits = [...outfitDetails];
-                updatedOutfits.splice(index, 1);
-                await updateDoc(userRef, { outfits: updatedOutfits });
-                setOutfitDetails(updatedOutfits);
+                const updatedOutfits = [...outfitDetails]; // Create a copy of the outfits array
+                updatedOutfits.splice(index, 1); // Remove the selected outfit from the array
+                await updateDoc(userRef, { outfits: updatedOutfits }); // Update Firestore with the new outfits array
+                setOutfitDetails(updatedOutfits); // Update the state with the new outfits array
               }
             }
           },
-          style: "destructive",
+          style: "destructive", // Make the delete button red
         },
       ]
     );
   };
 
-  const currentDate = new Date().toISOString().split("T")[0];
+  const currentDate = new Date().toISOString().split("T")[0]; // Get current date in 'YYYY-MM-DD' format
+  // Filter outfits to show only those that are today or in the future, based on the toggle state
   const filteredOutfits = showOlderOutfits
     ? outfitDetails
     : outfitDetails.filter((outfit) => outfit.date >= currentDate);
 
   return (
     <ScrollView
-      contentContainerStyle={styles.container}
+      contentContainerStyle={styles.container} // Apply container styles
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} /> // Enable pull-to-refresh functionality
       }
     >
+      {/* Page title */}
       <Text style={styles.title}>Outfit Planner</Text>
+
+      {/* Calendar component for selecting dates */}
       <Calendar
         style={styles.calendar}
-        markedDates={markedDates}
+        markedDates={markedDates} // Pass marked dates to highlight specific dates
         theme={{
           backgroundColor: "#1C2C22",
           calendarBackground: "#1C2C22",
@@ -114,25 +125,31 @@ const PlannerHome = () => {
           textDayFontFamily: "PlayfairDisplay",
           textMonthFontFamily: "PlayfairDisplay",
           textDayHeaderFontFamily: "PlayfairDisplay",
-        }}
+        }} // Customize the calendar theme
       />
+
+      {/* Button to navigate to outfit planning screen */}
       <TouchableOpacity
         style={styles.planButton}
         onPress={() => router.push("/planner/plan-outfit")}
       >
         <Text style={styles.planButtonText}>Plan Outfit</Text>
       </TouchableOpacity>
+
+      {/* Display the list of outfits */}
       {filteredOutfits.map((outfit, index) => (
         <View key={index} style={styles.outfitContainer}>
           <View style={styles.outfitHeader}>
-            <Text style={styles.outfitDate}>{outfit.date}</Text>
+            <Text style={styles.outfitDate}>{outfit.date}</Text> {/* Outfit date */}
             <TouchableOpacity onPress={() => deleteOutfit(index)}>
-              <FontAwesome name="trash" size={24} color="#1C2C22" />
+              <FontAwesome name="trash" size={24} color="#1C2C22" /> {/* Trash icon for deleting an outfit */}
             </TouchableOpacity>
           </View>
-          <Text style={styles.outfitDetails}>{outfit.details}</Text>
+          <Text style={styles.outfitDetails}>{outfit.details}</Text> {/* Outfit details */}
         </View>
       ))}
+
+      {/* Button to toggle visibility of older outfits */}
       {!showOlderOutfits && (
         <TouchableOpacity
           style={styles.showOlderButton}
@@ -145,22 +162,14 @@ const PlannerHome = () => {
   );
 };
 
+// Styles for the PlannerHome screen
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     justifyContent: "flex-start",
     alignItems: "center",
     padding: 20,
-    backgroundColor: "#1C2C22",
-  },
-  backButton: {
-    position: "absolute",
-    top: 40,
-    left: 20,
-  },
-  backButtonText: {
-    color: "#A0A897",
-    fontSize: 16,
+    backgroundColor: "#1C2C22", // Background color for the entire screen
   },
   title: {
     fontSize: 24,
@@ -224,3 +233,4 @@ const styles = StyleSheet.create({
 });
 
 export default PlannerHome;
+
