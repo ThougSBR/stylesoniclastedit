@@ -23,48 +23,51 @@ import {
 } from "firebase/firestore";
 
 const PantsScreen = () => {
+  // State to hold the list of pants items
   const [pants, setPants] = useState<
     { imageId: string; name: string; imageUrl: string }[]
   >([]);
-  const router = useRouter();
-  const [showShareModal, setShowShareModal] = useState(false);
+  const router = useRouter(); // Router for navigation
+  const [showShareModal, setShowShareModal] = useState(false); // State for showing the share modal
   const [selectedPants, setSelectedPants] = useState<{
     imageId: string;
     name: string;
     imageUrl: string;
-  } | null>(null);
-  const [caption, setCaption] = useState("");
+  } | null>(null); // Selected pants for sharing
+  const [caption, setCaption] = useState(""); // Caption for shared pants
 
   useEffect(() => {
+    // Function to fetch pants from the user's data
     const fetchPants = async () => {
       try {
-        const userId = auth.currentUser?.uid;
+        const userId = auth.currentUser?.uid; // Get current user's ID
         if (userId) {
           const db = getFirestore();
           const userRef = doc(db, "users", userId);
-          const userDoc = await getDoc(userRef);
+          const userDoc = await getDoc(userRef); // Get user document
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            const pantsList = userData.pants || [];
+            const pantsList = userData.pants || []; // Get pants list from user data
             // Ensure each pants item has an imageUrl
             const pantsWithUrls = pantsList.map((pant: any) => ({
               ...pant,
               imageUrl:
                 pant.imageUrl ||
-                `http://192.168.0.16:5000/uploads/${pant.imageId}`,
+                `http://192.168.0.16:5000/uploads/${pant.imageId}`, // Default image URL if missing
             }));
-            setPants(pantsWithUrls);
+            setPants(pantsWithUrls); // Set the pants in state
           }
         }
       } catch (error) {
-        console.error("Error fetching pants:", error);
-        Alert.alert("Error", "Failed to fetch pants");
+        console.error("Error fetching pants:", error); // Log error
+        Alert.alert("Error", "Failed to fetch pants"); // Alert on failure
       }
     };
 
-    fetchPants();
+    fetchPants(); // Call function to fetch pants
   }, []);
 
+  // Function to handle sharing a selected pant
   const handleShare = async (pants: {
     imageId: string;
     name: string;
@@ -72,77 +75,79 @@ const PantsScreen = () => {
   }) => {
     if (!pants.imageUrl) {
       Alert.alert("Error", "Cannot share outfit: Image URL is missing");
-      return;
+      return; // Prevent sharing if image URL is missing
     }
-    setSelectedPants(pants);
-    setShowShareModal(true);
+    setSelectedPants(pants); // Set selected pants
+    setShowShareModal(true); // Show the share modal
   };
 
+  // Function to handle posting the shared pant
   const handlePost = async () => {
     if (!selectedPants || !caption.trim()) {
       Alert.alert("Error", "Please enter a caption");
-      return;
+      return; // Check if there's a selected pant and a caption
     }
 
     if (!selectedPants.imageUrl) {
       Alert.alert("Error", "Cannot share outfit: Image URL is missing");
-      return;
+      return; // Prevent sharing if image URL is missing
     }
 
     try {
-      const user = auth.currentUser;
+      const user = auth.currentUser; // Get current user
       if (user) {
         const db = getFirestore();
         await addDoc(collection(db, "posts"), {
           userId: user.uid,
-          userName: user.fullName || "Anonymous",
+          userName: user.fullName || "Anonymous", // Use full name or default to "Anonymous"
           imageUrl: selectedPants.imageUrl,
           caption: caption.trim(),
           timestamp: new Date(),
-          likes: 0,
+          likes: 0, // Initialize likes as 0
         });
 
-        setShowShareModal(false);
-        setCaption("");
-        Alert.alert("Success", "Outfit shared successfully!");
+        setShowShareModal(false); // Close the share modal
+        setCaption(""); // Clear the caption field
+        Alert.alert("Success", "Outfit shared successfully!"); // Success message
       }
     } catch (error) {
-      console.error("Error sharing outfit:", error);
-      Alert.alert("Error", "Failed to share outfit");
+      console.error("Error sharing outfit:", error); // Log error
+      Alert.alert("Error", "Failed to share outfit"); // Alert on failure
     }
   };
 
+  // Function to handle deleting a pant
   const handleDelete = async (pants: { imageId: string; name: string }) => {
     try {
       // Delete the image from the backend
       const response = await fetch(
         `http://192.168.0.16:5000/delete/${pants.imageId}`,
         {
-          method: "DELETE",
+          method: "DELETE", // DELETE request to backend
         }
       );
 
-      const result = await response.json();
+      const result = await response.json(); // Get response from server
       if (result.success) {
-        const userId = auth.currentUser?.uid;
+        const userId = auth.currentUser?.uid; // Get current user's ID
         if (userId) {
           const db = getFirestore();
           const userRef = doc(db, "users", userId);
           await updateDoc(userRef, {
-            pants: arrayRemove(pants),
+            pants: arrayRemove(pants), // Remove the deleted pant from user's data
           });
           setPants((prevPants) =>
-            prevPants.filter((p) => p.imageId !== pants.imageId)
+            prevPants.filter((p) => p.imageId !== pants.imageId) // Remove from state
           );
-          Alert.alert("Success", "Image deleted successfully");
+          Alert.alert("Success", "Image deleted successfully"); // Success message
         }
       } else {
         console.error("Failed to delete image from backend:", result.error);
-        Alert.alert("Error", "Failed to delete image from backend");
+        Alert.alert("Error", "Failed to delete image from backend"); // Alert on failure
       }
     } catch (error) {
-      console.error("Error deleting image:", error);
-      Alert.alert("Error", "Failed to delete image");
+      console.error("Error deleting image:", error); // Log error
+      Alert.alert("Error", "Failed to delete image"); // Alert on failure
     }
   };
 
@@ -163,13 +168,13 @@ const PantsScreen = () => {
               <View style={styles.buttonContainer}>
                 <TouchableOpacity
                   style={styles.shareButton}
-                  onPress={() => handleShare(pants)}
+                  onPress={() => handleShare(pants)} // Handle share
                 >
                   <Ionicons name="share-social" size={24} color="#FFC1A1" />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.deleteButton}
-                  onPress={() => handleDelete(pants)}
+                  onPress={() => handleDelete(pants)} // Handle delete
                 >
                   <FontAwesome5 name="trash" size={24} color="#FFC1A1" />
                 </TouchableOpacity>
@@ -194,7 +199,7 @@ const PantsScreen = () => {
               style={styles.captionInput}
               placeholder="Write a caption..."
               value={caption}
-              onChangeText={setCaption}
+              onChangeText={setCaption} // Update caption
               multiline
             />
             <View style={styles.modalButtons}>
@@ -202,14 +207,14 @@ const PantsScreen = () => {
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => {
                   setShowShareModal(false);
-                  setCaption("");
+                  setCaption(""); // Reset caption on cancel
                 }}
               >
                 <Text style={styles.modalButtonText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.shareButtonStyle]}
-                onPress={handlePost}
+                onPress={handlePost} // Handle post
               >
                 <Text style={styles.modalButtonText}>Share</Text>
               </TouchableOpacity>
@@ -279,6 +284,9 @@ const styles = StyleSheet.create({
   shareButton: {
     padding: 5,
   },
+  deleteButton: {
+    padding: 5,
+  },
   addButton: {
     backgroundColor: "#A0A897",
     padding: 15,
@@ -343,13 +351,6 @@ const styles = StyleSheet.create({
     color: "#1C2C22",
     fontSize: 16,
     fontWeight: "bold",
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  deleteButton: {
-    padding: 5,
   },
 });
 
