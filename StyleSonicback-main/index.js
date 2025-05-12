@@ -1,42 +1,40 @@
-const express = require("express");
-const multer = require("multer");
-const cors = require("cors");
-const fs = require("fs");
-const path = require("path");
-const getColors = require("get-image-colors"); // ✅ Extract dominant colors
-const getPixels = require("get-pixels"); // ✅ Extract pixel colors from coordinates
+const express = require("express"); // Importing express to create the server
+const multer = require("multer"); // Importing multer for handling file uploads
+const cors = require("cors"); // Importing CORS middleware to enable cross-origin requests
+const fs = require("fs"); // Importing file system module to handle file operations
+const path = require("path"); // Importing path module to work with file and directory paths
+const getColors = require("get-image-colors"); // Importing get-image-colors to extract dominant colors from images
+const getPixels = require("get-pixels"); // Importing get-pixels to extract pixel colors from specific coordinates in the image
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+const app = express(); // Creating an instance of the express app
+app.use(cors()); // Enabling CORS for all requests
+app.use(express.json()); // Middleware to parse incoming JSON request bodies
 
 // 🔹 Create "uploads" directory if it doesn't exist
-const uploadDir = path.join(__dirname, "uploads");
+const uploadDir = path.join(__dirname, "uploads"); // Define the path for the "uploads" directory
 if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
+  fs.mkdirSync(uploadDir); // Create the directory if it doesn't exist
 }
 
 // 🔹 Configure Multer for local file storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/");
+    cb(null, "uploads/"); // Set the destination folder for uploads
   },
   filename: (req, file, cb) => {
-    const fileName = `${Date.now()}-${file.originalname}`;
-    cb(null, fileName);
+    const fileName = `${Date.now()}-${file.originalname}`; // Generate a unique filename using the current timestamp
+    cb(null, fileName); // Set the final filename
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({ storage }); // Initialize multer with the defined storage settings
 
 /** ✅ Convert RGB to HSL */
 const rgbToHsl = (r, g, b) => {
-  (r /= 255), (g /= 255), (b /= 255);
-  let max = Math.max(r, g, b),
-    min = Math.min(r, g, b);
-  let h,
-    s,
-    l = (max + min) / 2;
+  // Convert RGB values to HSL (Hue, Saturation, Lightness)
+  (r /= 255), (g /= 255), (b /= 255); // Normalize RGB to [0, 1]
+  let max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h, s, l = (max + min) / 2;
 
   if (max === min) {
     h = s = 0;
@@ -54,14 +52,15 @@ const rgbToHsl = (r, g, b) => {
         h = (r - g) / d + 4;
         break;
     }
-    h /= 6;
+    h /= 6; // Normalize hue to [0, 1]
   }
 
-  return { h: h * 360, s: s * 100, l: l * 100 };
+  return { h: h * 360, s: s * 100, l: l * 100 }; // Return HSL values scaled to [0-360] for hue and [0-100] for saturation and lightness
 };
 
 /** ✅ Determine Season Based on HSL */
 const determineSeason = (faceHsl, hairHsl, eyeHsl) => {
+  // Calculate the average HSL values of the face, hair, and eyes
   const avgHue = (faceHsl.h + hairHsl.h + eyeHsl.h) / 3;
   const avgSat = (faceHsl.s + hairHsl.s + eyeHsl.s) / 3;
   const avgLight = (faceHsl.l + hairHsl.l + eyeHsl.l) / 3;
@@ -71,6 +70,7 @@ const determineSeason = (faceHsl, hairHsl, eyeHsl) => {
   console.log("Hair HSL:", hairHsl);
   console.log("Eye HSL:", eyeHsl);
 
+  // Determine season based on HSL values
   if (avgLight > 75) {
     if (avgHue >= 0 && avgHue <= 50) return "Light Spring";
     if (avgHue > 50 && avgHue <= 150) return "Light Summer";
@@ -90,11 +90,12 @@ const determineSeason = (faceHsl, hairHsl, eyeHsl) => {
     if (avgHue > 280 && avgHue <= 360) return "Deep Winter";
   }
 
-  return "Unknown Season";
+  return "Unknown Season"; // Default return if no season is detected
 };
 
 /** ✅ Suggested Colors for Each Season */
 const getOutfitSuggestions = (season) => {
+  // Define color suggestions for different seasons
   const outfitColors = {
     "Light Spring": ["Soft peach", "Warm pink", "Pale gold"],
     "True Spring": ["Bright coral", "Leaf green", "Golden yellow"],
@@ -110,16 +111,16 @@ const getOutfitSuggestions = (season) => {
     "Deep Winter": ["Dark charcoal", "Electric blue", "Jewel tones"],
   };
 
-  return outfitColors[season] || ["No specific outfit recommendations."];
+  return outfitColors[season] || ["No specific outfit recommendations."]; // Return outfit colors for the detected season
 };
 
 app.post("/upload", upload.single("image"), async (req, res) => {
-  // just upload and return the image id
+  // Endpoint to upload an image and return the image ID
   try {
     console.log("Processing image...");
     console.log("Uploaded file:", req.file);
     if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
+      return res.status(400).json({ error: "No file uploaded" }); // Handle missing file error
     }
 
     const previousImageId = req.body.previousImageId;
@@ -129,7 +130,7 @@ app.post("/upload", upload.single("image"), async (req, res) => {
         "uploads",
         previousImageId
       );
-      // delete previous image
+      // Delete the previous image if there is one
       fs.unlink(previousImagePath, (err) => {
         if (err) {
           console.error("Error deleting image:", err);
@@ -147,7 +148,7 @@ app.post("/upload", upload.single("image"), async (req, res) => {
     });
   } catch (error) {
     console.error("Error processing image:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Internal server error" }); // Handle internal server error
   }
 });
 
@@ -158,7 +159,7 @@ app.post("/analyse", upload.single("image"), async (req, res) => {
     console.log("Uploaded file:", req.file);
     console.log("Request body:", req.body);
     if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
+      return res.status(400).json({ error: "No file uploaded" }); // Handle missing file error
     }
 
     const imageId = req.file.filename;
@@ -167,14 +168,14 @@ app.post("/analyse", upload.single("image"), async (req, res) => {
     const hairCoords = JSON.parse(req.body.hairCoords);
     const eyeCoords = JSON.parse(req.body.eyeCoords);
 
-    // 🔹 Extract dominant colors
+    // 🔹 Extract dominant colors from the uploaded image
     const colors = await getColors(imagePath);
     const colorPalette = colors.map((color) => color.hex());
-    const dominantColor = colorPalette[0] || "#000000";
+    const dominantColor = colorPalette[0] || "#000000"; // Get the first color as the dominant color
 
     getPixels(imagePath, function (err, pixels) {
       if (err) {
-        return res.status(500).json({ error: "Error processing image" });
+        return res.status(500).json({ error: "Error processing image" }); // Handle pixel extraction error
       }
 
       const getColorAt = (coords) => {
@@ -195,7 +196,7 @@ app.post("/analyse", upload.single("image"), async (req, res) => {
       const hairHsl = rgbToHsl(hairRgb.r, hairRgb.g, hairRgb.b);
       const eyeHsl = rgbToHsl(eyeRgb.r, eyeRgb.g, eyeRgb.b);
 
-      // 🔹 Determine season based on selected colors
+      // 🔹 Determine the season based on the extracted colors
       const detectedSeason = determineSeason(faceHsl, hairHsl, eyeHsl);
       const outfitSuggestions = getOutfitSuggestions(detectedSeason);
       fs.unlink(imagePath, (err) => {
@@ -219,31 +220,32 @@ app.post("/analyse", upload.single("image"), async (req, res) => {
     });
   } catch (error) {
     console.error("Error processing image:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Internal server error" }); // Handle internal server error
   }
 });
 
 /** ✅ Serve Uploaded Images */
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static("uploads")); // Serve static files from the "uploads" directory
 
 app.delete("/delete/:imageId", (req, res) => {
-  const imageId = req.params.imageId;
-  const imagePath = path.join(__dirname, "uploads", imageId);
+  const imageId = req.params.imageId; // Get the image ID from the URL parameter
+  const imagePath = path.join(__dirname, "uploads", imageId); // Define the image file path
 
   fs.unlink(imagePath, (err) => {
     if (err) {
-      console.error("Error deleting image:", err);
+      console.error("Error deleting image:", err); // Handle image deletion error
       return res.status(500).json({ error: "Error deleting image" });
     }
-    console.log("Image deleted:", imagePath);
-    res.json({ success: true, message: "Image deleted" });
+    console.log("Image deleted:", imagePath); // Log successful deletion
+    res.json({ success: true, message: "Image deleted" }); // Send success response
   });
 });
 
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+  res.send("Hello World!"); // Basic hello world endpoint
 });
 
 /** ✅ Start Server */
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const PORT = process.env.PORT || 5000; // Set port from environment variable or default to 5000
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`)); // Start the server
+
