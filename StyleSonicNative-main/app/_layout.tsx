@@ -2,42 +2,49 @@ import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
-} from "@react-navigation/native";
-import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
-import { StatusBar } from "expo-status-bar";
-import { useEffect, useState } from "react";
-import "react-native-reanimated";
-import { useColorScheme } from "@/hooks/useColorScheme";
-import Middleware from "../app/_middleware";
+} from "@react-navigation/native"; // Import themes for navigation
+import { useFonts } from "expo-font"; // Hook to load custom fonts
+import { Stack } from "expo-router"; // Stack navigation from expo-router
+import * as SplashScreen from "expo-splash-screen"; // SplashScreen for initial loading
+import { StatusBar } from "expo-status-bar"; // Status bar for handling status bar styles
+import { useEffect, useState } from "react"; // React hooks for side effects and state management
+import "react-native-reanimated"; // Import for animations
+import { useColorScheme } from "@/hooks/useColorScheme"; // Custom hook to get the system's color scheme (light or dark)
+import Middleware from "../app/_middleware"; // Custom middleware component for the app
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync(); // Prevent splash screen from hiding automatically until app is ready
 
+// Main layout component for the root of the app
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const colorScheme = useColorScheme(); // Use the custom hook to get the system color scheme
   const [loaded] = useFonts({
+    // Load custom fonts used in the app
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
     PlayfairDisplay: require("../assets/fonts/PlayfairDisplay-Regular.ttf"),
     Poppins: require("../assets/fonts/Poppins-Regular.ttf"),
   });
-  const [appReady, setAppReady] = useState(false);
+  const [appReady, setAppReady] = useState(false); // State to check if app is ready to be displayed
 
+  // Effect hook to hide splash screen once fonts are loaded
   useEffect(() => {
     if (loaded) {
-      SplashScreen.hideAsync();
-      setAppReady(true);
+      SplashScreen.hideAsync(); // Hide splash screen when fonts are loaded
+      setAppReady(true); // Set appReady to true to indicate app is ready to be shown
     }
   }, [loaded]);
 
+  // If fonts or app are not ready, return null to prevent rendering
   if (!loaded || !appReady) {
-    return null;
+    return null; 
   }
 
   return (
+    // ThemeProvider applies the appropriate theme based on the system color scheme (dark or light mode)
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <Middleware />
+      <Middleware /> {/* Middleware component for the app */}
+      
       <Stack>
+        {/* Stack navigation screen definitions with specific routes */}
         <Stack.Screen name="auth/login" options={{ headerShown: false }} />
         <Stack.Screen name="auth/signup" options={{ headerShown: false }} />
         <Stack.Screen
@@ -74,8 +81,10 @@ export default function RootLayout() {
           options={{ headerShown: false }}
         />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
+        <Stack.Screen name="+not-found" /> {/* Screen for handling not found route */}
       </Stack>
+
+      {/* Status bar handling */}
       <StatusBar style="auto" />
     </ThemeProvider>
   );
