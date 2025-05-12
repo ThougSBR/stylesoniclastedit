@@ -11,7 +11,7 @@
   "routes": [
     {
       "src": "/(.*)", // A regular expression pattern that matches all incoming routes.
-      "dest": "/" // All requests are routed to the root (`/`) of the app. This is typically used to handle all requests via a single entry point (in this case, `index.js`).
+      "dest": "/" /// All requests are routed to the root (`/`) of the app. This is typically used to handle all requests via a single entry point (in this case, `index.js`).
     }
   ]
 }
