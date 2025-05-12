@@ -1,15 +1,17 @@
 {
-  "version": 2,
+  "version": 2, // Specifies the version of the Vercel platform to use. Version 2 is the latest stable version and supports modern workflows.
+  
   "builds": [
     {
-      "src": "./index.js",
-      "use": "@vercel/node"
+      "src": "./index.js", // Specifies the source file for the build. In this case, it's the `index.js` file at the root of your project.
+      "use": "@vercel/node" // Specifies the build system to use. `@vercel/node` is used for Node.js serverless functions.
     }
   ],
+
   "routes": [
     {
-      "src": "/(.*)",
-      "dest": "/"
+      "src": "/(.*)", // A regular expression pattern that matches all incoming routes.
+      "dest": "/" // All requests are routed to the root (`/`) of the app. This is typically used to handle all requests via a single entry point (in this case, `index.js`).
     }
   ]
 }
