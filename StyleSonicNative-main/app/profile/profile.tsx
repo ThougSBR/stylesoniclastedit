@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react"; // React imports
 import {
   View,
   Text,
@@ -8,64 +8,71 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-} from "react-native";
-import * as ImagePicker from "expo-image-picker";
-import { Ionicons } from "@expo/vector-icons"; // Added Ionicons import
-import { auth } from "../../services/firebaseConfig";
-import { getUserProfile, logout } from "../../services/authService";
-import { useRouter } from "expo-router";
-import { doc, getFirestore, updateDoc } from "firebase/firestore";
+} from "react-native"; // React Native components
+import * as ImagePicker from "expo-image-picker"; // For handling image picking from the user's gallery
+import { Ionicons } from "@expo/vector-icons"; // Ionicons for icons like back button
+import { auth } from "../../services/firebaseConfig"; // Firebase auth service
+import { getUserProfile, logout } from "../../services/authService"; // Services to fetch user data and log out
+import { useRouter } from "expo-router"; // Router hook for navigation
+import { doc, getFirestore, updateDoc } from "firebase/firestore"; // Firestore methods
 
+// ProfileScreen component displays the user's profile information
 const ProfileScreen = () => {
-  const [userData, setUserData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [userData, setUserData] = useState<any>(null); // State to store user profile data
+  const [loading, setLoading] = useState(true); // State to manage loading state
 
-  const router = useRouter();
+  const router = useRouter(); // Use the router for navigation
 
+  // useEffect hook to fetch user data from Firestore when the component mounts
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const userId = auth.currentUser?.uid;
+        const userId = auth.currentUser?.uid; // Get current user ID
         if (userId) {
-          const profileData = await getUserProfile(userId);
-          setUserData(profileData);
+          const profileData = await getUserProfile(userId); // Fetch profile data from Firestore
+          setUserData(profileData); // Set the fetched data to state
         }
       } catch (error) {
-        console.error("Error fetching profile:", error);
+        console.error("Error fetching profile:", error); // Handle errors while fetching
       } finally {
-        setLoading(false);
+        setLoading(false); // Stop the loading indicator
       }
     };
 
-    fetchUserData();
-  }, []);
+    fetchUserData(); // Call the fetch user data function
+  }, []); // Empty dependency array ensures this runs once when component mounts
 
+  // handleLogout function to log out the user
   const handleLogout = async () => {
     try {
-      await logout();
+      await logout(); // Call the logout service
     } catch (error) {
-      console.error("Error logging out:", error);
+      console.error("Error logging out:", error); // Handle logout error
     }
   };
 
+  // handleImageUpload function to allow users to upload a profile image
   const handleImageUpload = async () => {
     try {
+      // Request permission to access media library
       const permissionResult =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (permissionResult.granted === false) {
-        Alert.alert("Permission to access camera roll is required!");
+        Alert.alert("Permission to access camera roll is required!"); // Alert if permission is not granted
         return;
       }
 
+      // Open image picker to allow the user to select an image
       const pickerResult = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [1, 1],
+        aspect: [1, 1], // Make the selected image square
       });
       if (pickerResult.canceled === true) {
-        return;
+        return; // Do nothing if the user cancels the image picker
       }
 
+      // Prepare the selected image for upload
       const formData = new FormData();
       formData.append("image", {
         uri: pickerResult.assets[0].uri,
@@ -73,44 +80,48 @@ const ProfileScreen = () => {
         type: "image/jpeg",
       });
 
+      // Add the previous image ID to the form data to remove it after the upload
       formData.append("previousImageId", userData?.profileImageId || "");
 
+      // Send the image to the backend (server) for upload
       const response = await fetch("http://192.168.0.16:5000/upload", {
         method: "POST",
         body: formData,
         headers: {
-          "Content-Type": "multipart/form-data",
+          "Content-Type": "multipart/form-data", // Indicating file upload
         },
       });
 
-      const result = await response.json();
+      const result = await response.json(); // Parse the response from the server
       console.log("Image upload result:", result);
       if (result.success) {
+        // If the upload is successful, update the user profile with the new image ID
         const userId = auth.currentUser?.uid;
         if (userId) {
-          const db = getFirestore();
-          const userRef = doc(db, "users", userId);
+          const db = getFirestore(); // Get Firestore reference
+          const userRef = doc(db, "users", userId); // Reference to the user's document
           await updateDoc(userRef, {
-            profileImageId: result.imageId,
+            profileImageId: result.imageId, // Update the profile image ID in Firestore
           });
           setUserData((prevData: any) => ({
             ...prevData,
-            profileImageId: result.imageId,
+            profileImageId: result.imageId, // Update the local state with the new image ID
           }));
         }
       } else {
-        console.error("Failed to upload image:", result.error);
-        Alert.alert("Failed to upload image");
+        console.error("Failed to upload image:", result.error); // Log upload errors
+        Alert.alert("Failed to upload image"); // Show error alert
       }
     } catch (error) {
-      console.error("Error uploading image:", error);
-      Alert.alert("Error uploading image");
+      console.error("Error uploading image:", error); // Log upload error
+      Alert.alert("Error uploading image"); // Show error alert
     }
   };
 
+  // Show loading indicator if data is still being fetched
   if (loading) return <ActivityIndicator size="large" color="#A0A897" />;
 
-  // Construct profile image URL using Node.js backend
+  // Construct profile image URL using backend (or use placeholder if no image)
   const profilePicUrl = userData?.profileImageId
     ? `http://192.168.0.16:5000/uploads/${userData.profileImageId}`
     : "https://via.placeholder.com/100";
@@ -119,340 +130,112 @@ const ProfileScreen = () => {
     <ScrollView
       contentContainerStyle={[
         styles.container,
-        { backgroundColor: "#1C2C22" }, // Apply Dominant Color
+        { backgroundColor: "#1C2C22" }, // Apply background color
       ]}
     >
       {/* Back Button */}
       <TouchableOpacity
         style={styles.backButton}
-        onPress={() => router.replace("/")}
+        onPress={() => router.replace("/")} // Navigate back to the home screen
       >
-        <Ionicons name="arrow-back" size={24} color="#FFF" />
+        <Ionicons name="arrow-back" size={24} color="#FFF" /> {/* Back icon */}
       </TouchableOpacity>
 
+      {/* Profile section */}
       <View style={styles.profileContainer}>
-        <TouchableOpacity onPress={handleImageUpload}>
-          <Image source={{ uri: profilePicUrl }} style={styles.profileImage} />
+                <TouchableOpacity onPress={handleImageUpload}>
+          {/* Display the profile image */}
+          <Image
+            source={{ uri: profilePicUrl }}
+            style={styles.profileImage} // Image styling
+          />
         </TouchableOpacity>
-        <View style={styles.nameContainer}>
-          <Text style={styles.name}>{userData?.fullName || "John Doe"}</Text>
-          {userData?.gender && (
-            <Ionicons
-              name={userData.gender === "Female" ? "female" : "male"}
-              size={24}
-              color={userData.gender === "Female" ? "#FF69B4" : "#1E90FF"}
-              style={styles.genderIcon}
-            />
-          )}
-        </View>
-        <Text style={styles.username}>@{userData?.username || "johndoe"}</Text>
-        <Text style={styles.email}>
-          {userData?.email || "johndoe@example.com"}
-        </Text>
+
+        {/* Display the user's name */}
+        <Text style={styles.username}>{userData?.name}</Text>
+
+        {/* Display the user's email */}
+        <Text style={styles.email}>{userData?.email}</Text>
       </View>
 
-      <View style={styles.infoContainer}>
-        <Text style={styles.infoTitle}>Bio</Text>
-        <Text style={styles.infoText}>
-          {userData?.bio || "This is a sample bio."}
-        </Text>
-      </View>
+      {/* Edit Profile Button */}
+      <TouchableOpacity
+        style={styles.editButton}
+        onPress={() => router.push("/profile/edit-profile")}
+      >
+        <Text style={styles.editButtonText}>Edit Profile</Text>
+      </TouchableOpacity>
 
-      <View style={styles.infoContainer}>
-        <Text style={styles.infoTitle}>Location</Text>
-        <Text style={styles.infoText}>
-          {userData?.location || "New York, USA"}
-        </Text>
-      </View>
-
-      {userData?.gender === "Female" && userData?.measurements && (
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoTitle}>Body Measurements</Text>
-          <View style={styles.measurementsGrid}>
-            <View style={styles.measurementItem}>
-              <Text style={styles.measurementLabel}>Waist</Text>
-              <Text style={styles.measurementValue}>
-                {userData.measurements.waist} cm
-              </Text>
-            </View>
-            <View style={styles.measurementItem}>
-              <Text style={styles.measurementLabel}>Hips</Text>
-              <Text style={styles.measurementValue}>
-                {userData.measurements.hips} cm
-              </Text>
-            </View>
-            <View style={styles.measurementItem}>
-              <Text style={styles.measurementLabel}>Bust</Text>
-              <Text style={styles.measurementValue}>
-                {userData.measurements.bust} cm
-              </Text>
-            </View>
-            <View style={styles.measurementItem}>
-              <Text style={styles.measurementLabel}>Shoulders</Text>
-              <Text style={styles.measurementValue}>
-                {userData.measurements.shoulders} cm
-              </Text>
-            </View>
-          </View>
-          {userData?.bodyType && (
-            <View style={styles.bodyTypeContainer}>
-              <Text style={styles.infoTitle}>Body Type</Text>
-              <Text style={styles.bodyTypeText}>{userData.bodyType}</Text>
-            </View>
-          )}
-        </View>
-      )}
-
-      {/* Show Detected Season and Dominant Color */}
-      <View style={styles.colorInfo}>
-        {userData?.detectedSeason && (
-          <Text style={styles.detectedSeasonTitle}>
-            Detected Season: {userData.detectedSeason}
-          </Text>
-        )}
-        <Text style={styles.infoTitle}>Dominant Color</Text>
-        <View
-          style={[
-            styles.colorSwatch,
-            { backgroundColor: userData?.dominantColor || "#FFFFFF" },
-          ]}
-        >
-          {/* <Text style={styles.colorHex}>
-            {userData?.dominantColor || "#FFFFFF"}
-          </Text> */}
-        </View>
-        {userData?.colorPalette && (
-          <>
-            <Text style={styles.detectedColorsTitle}>
-              Other Detected Colors
-            </Text>
-            <View style={styles.colorPalette}>
-              {userData.colorPalette
-                .slice(0, 4)
-                .map((color: string, index: number) => (
-                  <View
-                    key={index}
-                    style={[styles.colorSwatch, { backgroundColor: color }]}
-                  />
-                ))}
-            </View>
-          </>
-        )}
-        {userData?.outfitSuggestions && (
-          <>
-            <Text style={styles.outfitSuggestionsTitle}>
-              Outfit Colors Suggestions
-            </Text>
-            <View style={styles.outfitSuggestions}>
-              {userData.outfitSuggestions.map(
-                (outfit: string, index: number) => (
-                  <Text key={index} style={styles.outfitText}>
-                    {outfit}
-                  </Text>
-                )
-              )}
-            </View>
-          </>
-        )}
-        <TouchableOpacity
-          style={styles.analyseButton}
-          onPress={() => router.replace("/analyser/main")}
-        >
-          <Text style={styles.analyseButtonText}>
-            {userData?.dominantColor ? "Analyse again" : "Analyse"}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => router.replace("/profile/change-password-screen")}
-        >
-          <Text style={styles.buttonText}>Change Password</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => router.replace("/profile/edit-profile")}
-        >
-          <Text style={styles.buttonText}>Edit Profile</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={handleLogout}>
-          <Text style={styles.buttonText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Logout Button */}
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <Text style={styles.logoutButtonText}>Logout</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 };
+
+// Styling for the ProfileScreen component
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    justifyContent: "flex-start", // Adjusted to start from the top
-    alignItems: "center",
-    padding: 20,
-  },
-  profileContainer: {
-    alignItems: "center",
-    marginBottom: 20, // Adjusted to maintain layout
-    marginTop: 20, // Adjusted to maintain layout
-  },
-  profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 3,
-    borderColor: "#FFF",
-    marginBottom: 15,
-  },
-  nameContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  name: {
-    fontSize: 22,
-    fontFamily: "PlayfairDisplay",
-    color: "#FFC1A1",
-  },
-  username: { fontSize: 16, color: "#A0A897" },
-  email: { fontSize: 14, color: "#C2C2C2", marginBottom: 20 },
-
-  colorInfo: {
-    width: "100%",
-    alignItems: "center",
-    marginBottom: 20, // Added margin to separate sections
-  },
-  colorTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#FFF",
-  },
-  colorPalette: {
-    flexDirection: "row",
-    justifyContent: "center",
-    flexWrap: "wrap",
-  },
-  colorSwatch: {
-    width: 60,
-    height: 60,
-    borderRadius: 50,
-    margin: 5,
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 2,
-  },
-  colorHex: {
-    color: "#FFF",
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 1,
-  },
-  analyseButton: {
-    backgroundColor: "#1C2C22",
-    padding: 10,
-    borderRadius: 10,
-    marginTop: 10,
-    alignItems: "center",
-    borderColor: "#A0A897",
-    borderWidth: 1,
-  },
-  analyseButtonText: {
-    color: "#A0A897",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  detectedColorsTitle: {
-    fontSize: 16,
-    color: "#FFF",
-    marginTop: 10,
-    fontFamily: "PlayfairDisplay",
-  },
-  outfitSuggestionsTitle: {
-    fontSize: 16,
-    color: "#FFF",
-    marginTop: 10,
-    fontFamily: "PlayfairDisplay",
-  },
-  outfitSuggestions: {
-    alignItems: "center",
-    marginTop: 10,
-  },
-  outfitText: {
-    color: "#FFF",
-    fontSize: 14,
-    marginBottom: 5,
-  },
-  infoContainer: { width: "100%", marginBottom: 20 },
-  infoTitle: {
-    fontSize: 18,
-    color: "#FFF",
-    fontFamily: "PlayfairDisplay",
-  },
-  infoText: { fontSize: 16, color: "#C2C2C2" },
-
-  buttonContainer: {
-    width: "100%",
-    alignItems: "center",
-    marginTop: 20, // Added margin to separate from the last info section
-  },
-  button: {
-    backgroundColor: "#A0A897",
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 10,
-    width: "90%",
-    alignItems: "center",
-  },
-  buttonText: { color: "#1C2C22", fontSize: 16, fontWeight: "bold" },
-  detectedSeasonTitle: {
-    fontSize: 18,
-    color: "#FFC1A1",
-    marginBottom: 10,
-    fontFamily: "PlayfairDisplay",
+    paddingTop: 50,
   },
   backButton: {
     position: "absolute",
-    top: 40,
+    top: 30,
     left: 20,
-    zIndex: 10,
+    zIndex: 1,
   },
-  genderIcon: {
-    marginLeft: 10,
+  profileContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 30,
   },
-  measurementsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginTop: 10,
+  profileImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: 20,
   },
-  measurementItem: {
-    width: "48%",
-    backgroundColor: "#2C3E2D",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  measurementLabel: {
-    color: "#C2C2C2",
-    fontSize: 14,
-    fontFamily: "Poppins",
-  },
-  measurementValue: {
-    color: "#FFF",
-    fontSize: 16,
+  username: {
+    fontSize: 24,
     fontWeight: "bold",
-    marginTop: 5,
+    color: "#FFF",
+    marginBottom: 5,
   },
-  bodyTypeContainer: {
-    marginTop: 20,
+  email: {
+    fontSize: 16,
+    color: "#C2C2C2",
+    marginBottom: 20,
+  },
+  editButton: {
+    backgroundColor: "#A0A897",
+    padding: 15,
+    borderRadius: 8,
+    width: "80%",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  editButtonText: {
+    color: "#1C2C22",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  logoutButton: {
+    backgroundColor: "#D9534F", // Red color for logout
+    padding: 15,
+    borderRadius: 8,
+    width: "80%",
     alignItems: "center",
   },
-  bodyTypeText: {
-    fontSize: 18,
-    color: "#FFC1A1",
-    fontFamily: "PlayfairDisplay",
-    marginTop: 5,
+  logoutButtonText: {
+    color: "#FFF",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });
 
 export default ProfileScreen;
+
